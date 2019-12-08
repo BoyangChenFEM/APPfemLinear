@@ -33,7 +33,8 @@ import matplotlib.pyplot as plt
 
 
 # set input file name
-jobname = 'salome-test3disp'
+#jobname = 'salome-test3disp'
+jobname = 'Tri3fFEMmesh1'
 inputfile = jobname+'.inp'
 
 # Define dimensional parameters

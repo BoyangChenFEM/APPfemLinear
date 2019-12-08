@@ -43,7 +43,7 @@ def vtkoutput1part(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE):
                 # tri elem has 4 data: elem index and node indices
                 nsize += 4*len(elist.elems)
                 # tri elem has eltype number 5 in vtk format (see below)
-                elnumlist.append(5)
+                for i in range(len(elist.elems)): elnumlist.append(5)
             else:
                 print('Unsupported element type in vtkoutput: '+elist.eltype)
                 
