@@ -128,7 +128,7 @@ def READ_NSET_NAME(set_name, node_list, ndof_node):
 # Call the kernel programme (same for different jobs)
 # return all data for postprocessing
 ###############################################################################
-[InputPartsData, nodes, elems, f, a, RF] = \
+[InputPartsData, nodes, elem_lists, f, a, RF] = \
 Kernel.kernel_program(inputfile, NDIM, NST, NDOF_NODE, ELEM_TYPES, Dmat, \
                       READ_NSET_NAME)
 
@@ -175,7 +175,7 @@ plt.show()
 #------------------------------------------------------------------------------
 # Default VTK output of data for visualization using Paraview
 #------------------------------------------------------------------------------
-vtkoutput(jobname, nodes, elems, f, a, RF, NDIM, NDOF_NODE)
+vtkoutput(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE)
 
           
 

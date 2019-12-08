@@ -5,8 +5,9 @@ Created on Fri Dec  6 22:08:27 2019
 @author: Boyang
 """
 from .Elements import tri2d3elem
+from . import Parameters as param
 
-def vtkoutput1part(jobname, nodes, elems, f, a, RF, NDIM, NDOF_NODE):
+def vtkoutput1part(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE):
     
     # set output file name
     outputfile = jobname+'-output.vtk'
@@ -31,23 +32,32 @@ def vtkoutput1part(jobname, nodes, elems, f, a, RF, NDIM, NDOF_NODE):
             output.write('\n')
         
         # write element connec
-        nelem = len(elems) # total no. of elems
-        nsize = 0 # initialize total no. of integers to be written for elem cnc
-        # calculate nsize
-        for ie, elem in enumerate(elems):
-            if isinstance(elem, tri2d3elem.tri2d3elem):
-                nsize += 4
+        # calculate total no. of elems and total size of data and form the list
+        # of element number for vtk output
+        nelem = 0
+        nsize = 0
+        elnumlist = []
+        for elist in elem_lists:
+            nelem += len(elist.elems)
+            if elist.eltype in param.tuple_tri2d3_eltypes:
+                # tri elem has 4 data: elem index and node indices
+                nsize += 4*len(elist.elems)
+                # tri elem has eltype number 5 in vtk format (see below)
+                elnumlist.append(5)
             else:
-                print('Unsupported element type in vtkoutput for elem '+str(ie+1))
+                print('Unsupported element type in vtkoutput: '+elist.eltype)
+                
         # write line for total count of elems and integer numbers to be written
         output.write('CELLS '+str(nelem)+' '+str(nsize)+'\n')
+        
         # write each element data: total no. of nodes and its nodal connec for
         # each line
-        for elem in elems:
-            output.write(str(len(elem.cnc_node))) # total no. of nodes
-            for inode in elem.cnc_node: # nodal connectivity of this elem
-                output.write(' '+str(inode))
-            output.write('\n')
+        for elist in elem_lists:
+            for elem in elist.elems:
+                output.write(str(len(elem.cnc_node))) # total no. of nodes
+                for inode in elem.cnc_node: # nodal connectivity of this elem
+                    output.write(' '+str(inode))
+                output.write('\n')
         
         # write the vtk eltype numbers for the different element types:
         output.write('CELL_TYPES'+' '+str(nelem)+'\n')
@@ -68,11 +78,8 @@ def vtkoutput1part(jobname, nodes, elems, f, a, RF, NDIM, NDOF_NODE):
         #24	VTK_QUADRATIC_TETRA	Tetrahedron Lagrange P2
         #25	VTK_QUADRATIC_HEXAHEDRON	Hexahedron Lagrange P2
         # ----------------------------------------------------
-        for ie, elem in enumerate(elems):
-            if isinstance(elem, tri2d3elem.tri2d3elem):
-                output.write(str(5)+'\n')
-            else:
-                print('Unsupported element type in vtkoutput for elem '+str(ie+1))
+        for elnum in elnumlist:
+            output.write(str(elnum)+'\n')
             
         # write nodal displacement vectors
         nnode = len(nodes)

@@ -16,6 +16,15 @@ from .Preprocessing import read_abaqus_parts as read_abaqus
 from .Elements import tri2d3elem
 from .Solvers import assembler, direct_solver_edu as solver
 
+# =================================================
+# Define classes for objects in kernel program
+# =================================================
+class elem_list:
+    def __init__(self, eltype, elems=None):
+        self.eltype = eltype
+        self.elems  = elems
+
+
 def kernel_program(inputfile, NDIM, NST, NDOF_NODE, ELEM_TYPES, Dmat, READ_NSET_NAME):
     ###############################################################################
     # Preprocessing 
@@ -32,7 +41,8 @@ def kernel_program(inputfile, NDIM, NST, NDOF_NODE, ELEM_TYPES, Dmat, READ_NSET_
     verify_dimensional_parameters(parts[0], NDIM, NST, NDOF_NODE, ELEM_TYPES)
         
     # form lists of nodes and elems
-    [nodes, elems] = form_nodes_elems(parts[0], NDOF_NODE, ELEM_TYPES)
+    nodes = form_nodes(parts[0])
+    elem_lists = form_elem_lists(parts[0], NDOF_NODE, ELEM_TYPES)
     
     # form lists of bcds and cloads
     [bcd_dofs, bcd_values, cload_dofs, cload_values] = \
@@ -43,7 +53,7 @@ def kernel_program(inputfile, NDIM, NST, NDOF_NODE, ELEM_TYPES, Dmat, READ_NSET_
     # Assembler 
     # obtain the full stiffness matrix K and external distributed force vector f
     ###############################################################################
-    [K, f] = assembler(nodes, elems, NDOF_NODE, Dmat)
+    [K, f] = assembler(nodes, elem_lists, NDOF_NODE, Dmat)
     
     
     ###############################################################################
@@ -54,7 +64,7 @@ def kernel_program(inputfile, NDIM, NST, NDOF_NODE, ELEM_TYPES, Dmat, READ_NSET_
     [a, RF] = solver(K, f, bcd_dofs, bcd_values, cload_dofs, cload_values)
         
     
-    return [parts, nodes, elems, f, a, RF]
+    return [parts, nodes, elem_lists, f, a, RF]
 
 
 
@@ -95,8 +105,13 @@ def verify_dimensional_parameters(part, NDIM, NST, NDOF_NODE, ELEM_TYPES):
 
 
 
-def form_nodes_elems(part, NDOF_NODE, ELEM_TYPES):
-    """form the list of nodes and elements for this part. They could be objects with 
+def form_nodes(part):
+    return np.asarray(part.nodes)
+
+
+
+def form_elem_lists(part, NDOF_NODE, ELEM_TYPES):
+    """form the lists of elements for this part. They could be objects with 
     components and associated methods. requires user-defined no. of dofs per node 
     and expected element types for this part"""
     
@@ -110,10 +125,12 @@ def form_nodes_elems(part, NDOF_NODE, ELEM_TYPES):
             elem_cnc_dof.extend(list(range(jnd*ndof_node, (jnd+1)*ndof_node)))
         return elem_cnc_dof
     
-    elems = []
+    elem_lists = []
     for elem_group in part.elem_groups:
         if elem_group.eltype in param.tuple_supported_eltypes and \
            elem_group.eltype in ELEM_TYPES:
+            # initialize the empty list of elems for this eltype
+            elems = []
             # loop over all elems in the nodal connectivity matrix
             for elem_cnc_node in elem_group.cnc_node:
                 # obtain the element's dof connectivity list
@@ -121,8 +138,10 @@ def form_nodes_elems(part, NDOF_NODE, ELEM_TYPES):
                 # form this element based on its eltype and using its node and dof cnc lists
                 if elem_group.eltype in param.tuple_tri2d3_eltypes:
                     elems.append(tri2d3elem.tri2d3elem(elem_cnc_node, elem_cnc_dof))
+            # form the elem_list for this eltype and append to the full elem_lists
+            elem_lists.append(elem_list(elem_group.eltype, elems))
     
-    return [np.asarray(part.nodes), elems]
+    return elem_lists
 
 
 
