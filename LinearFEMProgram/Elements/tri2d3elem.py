@@ -6,10 +6,7 @@ Functions for a 2D 3-node linear triangular element
 """
 import numpy as np
 import numpy.linalg as la
-
-#class igpoint:
-#    
-#    def __init__(self, Nmatrix, strain, stress):
+from .integration_point import igpoint
         
 
 class tri2d3elem:
@@ -17,6 +14,9 @@ class tri2d3elem:
     def __init__(self, cnc_node, cnc_dof):
         self.cnc_node  = cnc_node
         self.cnc_dof   = cnc_dof
+        # only 1 igpoint for this element type: at centroid, weight is the 
+        # full area of the reference triangle in natural configuration
+        self.igpoints  = [igpoint(xi=[1/3, 1/3], w=1/2)]
         
     @staticmethod
     def stiff_matrix(nodes, Dmat):
@@ -45,22 +45,25 @@ class tri2d3elem:
         dload_function : the distributed load vector as a function of (x,y)
         """
 
-    
-    @staticmethod
-    def strain_stress(nodes, Dmat, a):
+    def update_igpoints(self, nodes, Dmat, a):
         """
-        A function to calculate the strain and stress
+        A function to update igpoints of self
         required inputs:
         nodes : coordinates of the nodes
         Dmat  : material stiffness matrix
         a     : dof vector of the element
         """
-        # calculate the B matrix of the element
-        B = B_matrix(nodes)
-        # strain = B*a
-        epsilon = B@a
-        sigma   = Dmat@epsilon
-        return [epsilon, sigma]
+        # calculate & update position and displacement vectors
+        self.igpoints[0].x = [1/3*np.sum(nodes[:,0]), 1/3*np.sum(nodes[:,1])]
+        self.igpoints[0].u = [1/3*np.sum(a[0::2]),    1/3*np.sum(a[1::2])]
+        # calculate strain and stress
+        [epsilon, sigma] = strain_stress(nodes, Dmat, a)
+        # update to igpoint components
+        self.igpoints[0].strain = epsilon
+        self.igpoints[0].stress = sigma
+
+    
+
 
 
 
@@ -112,6 +115,25 @@ def B_matrix(nodes):
                   [    0, dN1dy,     0, dN2dy,     0, dN3dy],\
                   [dN1dy, dN1dx, dN2dy, dN2dx, dN3dy, dN3dx]])
     return B
+
+
+
+def strain_stress(nodes, Dmat, a):
+    """
+    A function to calculate the strain and stress
+    required inputs:
+    nodes : coordinates of the nodes
+    Dmat  : material stiffness matrix
+    a     : dof vector of the element
+    """
+    # calculate the B matrix of the element
+    B = B_matrix(nodes)
+    # strain = B*a
+    epsilon = B@a
+    sigma   = Dmat@epsilon
+    return [epsilon, sigma]
+
+
 
 def fext_dload_uniform(node1, node2, t):
     """

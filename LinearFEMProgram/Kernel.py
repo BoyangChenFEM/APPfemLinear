@@ -62,6 +62,17 @@ def kernel_program(inputfile, NDIM, NST, NDOF_NODE, ELEM_TYPES, Dmat, READ_NSET_
     # obtain dof vector a and reaction force vector RF, both size ndof by 1
     ###############################################################################    
     [a, RF] = solver(K, f, bcd_dofs, bcd_values, cload_dofs, cload_values)
+    
+    
+    ###############################################################################
+    # Update element igpoints for output/postprocessing
+    # modify the x, u, strain and stress of integration points of each element
+    ###############################################################################    
+    for elist in elem_lists:
+        for elem in elist.elems:
+            elnodes = nodes[elem.cnc_node]
+            eldofs  = a[elem.cnc_dof]
+            elem.update_igpoints(elnodes, Dmat, eldofs)
         
     
     return [parts, nodes, elem_lists, f, a, RF]

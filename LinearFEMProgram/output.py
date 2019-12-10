@@ -4,16 +4,16 @@ Created on Fri Dec  6 22:08:27 2019
 
 @author: Boyang
 """
-from .Elements import tri2d3elem
 from . import Parameters as param
 
 def vtkoutput1part(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE):
+    """program to write mesh, nodal solutions, reaction forces to vtk format"""
     
     # set output file name
     outputfile = jobname+'-output.vtk'
     
     # set the no. of decimals for real outputs
-    nd = 6
+    nd = param.num_decimal_for_output
     
     with open(outputfile,'w') as output:
         
@@ -123,3 +123,82 @@ def vtkoutput1part(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE):
                 output.write('\n')
                 
         output.close()
+        
+
+
+        
+def vtkoutput1part_igpoints(jobname, elem_lists, NST):
+    """program to write integration point data such as its position, 
+    displacement vector, strain and stress to vtk format"""
+    
+    # set output file name
+    outputfile = jobname+'-output-igpoints.vtk'
+    
+    # set the no. of decimals for real outputs
+    nd = param.num_decimal_for_output
+    
+    with open(outputfile,'w') as output:
+        
+        # write header
+        output.write('# vtk DataFile Version 3.1\n')
+        output.write('for FEM Programme igpoints output\n')
+        output.write('ASCII\n')
+        output.write('DATASET POLYDATA\n')
+        
+        # write igpoints
+        
+        # calculate the total number of igpoints and form all the lists for
+        # output
+        nsize = 0
+        xlist = []
+        ulist = []
+        strainlist = []
+        stresslist = []
+        for elist in elem_lists:
+            if elist.eltype in param.tuple_tri2d3_eltypes:
+                # tri elem has 1 ig point
+                nsize += len(elist.elems)
+                for elem in elist.elems:
+                    xlist.append(elem.igpoints[0].x)
+                    ulist.append(elem.igpoints[0].u)
+                    strainlist.append(elem.igpoints[0].strain)
+                    stresslist.append(elem.igpoints[0].stress)      
+            else:
+                print('Unsupported element type in vtkoutput: '+elist.eltype)
+        
+        # write the positions of the igpoints
+        output.write('POINTS '+str(nsize)+' double\n')
+        for x in xlist:
+            for xi in x:
+                output.write(' '+str(round(xi,nd)))
+            if (len(x) == 2): output.write(' 0.0')
+            output.write('\n')
+            
+        # write the displacement vectors of the igpoints
+        output.write('POINT_DATA '+str(nsize)+'\n')
+        output.write('VECTORS displacement double\n')
+        for u in ulist:
+            for uj in u:
+                output.write(str(round(uj,nd))+'  ')
+            if (len(u) == 2): output.write('0.0')
+            output.write('\n')
+            
+        # write strain and stress as field data
+        nfield = 2
+        
+        output.write('FIELD FieldData '+str(nfield)+'\n') 
+        # write applied forces and moments
+        output.write('Strain '+str(NST)+' '+str(nsize)+' double\n')
+        for strain in strainlist:
+            for eps in strain[:,0]:
+                output.write(str(round(eps,nd))+' ')
+            output.write('\n')
+        # write reaction forces and moments
+        output.write('Stress '+str(NST)+' '+str(nsize)+' double\n')
+        for stress in stresslist:
+            for sig in stress[:,0]:
+                output.write(str(round(sig,nd))+' ')
+            output.write('\n')
+            
+        output.close()
+        

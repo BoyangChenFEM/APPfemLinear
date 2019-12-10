@@ -12,7 +12,8 @@ defined nset name reader 'READ_NSET_NAME'
 # import the main program interface of LinearFEMProgram
 from LinearFEMProgram import Kernel
 # import the default output program to write outputs in vtk format
-from LinearFEMProgram.output import vtkoutput1part as vtkoutput
+from LinearFEMProgram.output import vtkoutput1part as vtkoutput, \
+                                    vtkoutput1part_igpoints as vtkoutput_ig
 ## for debugging
 #from LinearFEMProgram.Preprocessing import read_abaqus_parts as read_abaqus
 #from LinearFEMProgram.Kernel import form_nodes_elems, form_bcds_cloads
@@ -33,8 +34,8 @@ import matplotlib.pyplot as plt
 
 
 # set input file name
-#jobname = 'salome-test3disp'
-jobname = 'Tri3fFEMmesh1'
+jobname = 'salome-test3disp'
+#jobname = 'Tri3fFEMmesh1'
 inputfile = jobname+'.inp'
 
 # Define dimensional parameters
@@ -177,7 +178,7 @@ plt.show()
 # Default VTK output of data for visualization using Paraview
 #------------------------------------------------------------------------------
 vtkoutput(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE)
-
+vtkoutput_ig(jobname, elem_lists, NST)
           
 
 #

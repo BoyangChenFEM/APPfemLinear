@@ -5,6 +5,9 @@ A module to store problem-independent parameters.
 They should be used by the Kernel only.
 @author: Boyang
 """
+# no. of decimal places for output purposes
+num_decimal_for_output = 6
+
 # A dictionary to relate Abaqus element type and its no. of dofs per node
 dict_eltype_ndofnode = {'CPS3':2, 'CPE3':2, \
         'CPS4':2, 'CPS4R':2, 'CPE4':2, 'CPE4R':2}
