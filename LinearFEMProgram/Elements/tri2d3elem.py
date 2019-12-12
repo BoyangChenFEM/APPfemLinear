@@ -16,7 +16,7 @@ class tri2d3elem:
         self.cnc_dof   = cnc_dof
         # only 1 igpoint for this element type: at centroid, weight is the 
         # full area of the reference triangle in natural configuration
-        self.igpoints  = [igpoint(xi=[1/3, 1/3], w=1/2)]
+        self.igpoints  = [igpoint(xi=[1/3, 1/3])]
         
     @staticmethod
     def stiff_matrix(nodes, Dmat):

@@ -19,13 +19,21 @@ from .Solvers import assembler, direct_solver_edu as solver
 # =================================================
 # Define classes for objects in kernel program
 # =================================================
+class nset_data:
+    def __init__(self, settype, nodalDofs, dofValues):
+        self.settype = settype # either 'bcd' or 'cload'
+        self.nodalDofs = nodalDofs # indices of affected nodal DoFs
+        self.dofValues = dofValues # values of imposed disp or cload
+
 class elem_list:
     def __init__(self, eltype, elems=None):
         self.eltype = eltype
         self.elems  = elems
 
 
-def kernel_program(inputfile, NDIM, NST, NDOF_NODE, ELEM_TYPES, Dmat, READ_NSET_NAME):
+
+
+def kernel_program(inputfile, NDIM, NST, NDOF_NODE, ELEM_TYPES, Dmat, dict_nset_data):
     ###############################################################################
     # Preprocessing 
     ###############################################################################
@@ -46,7 +54,7 @@ def kernel_program(inputfile, NDIM, NST, NDOF_NODE, ELEM_TYPES, Dmat, READ_NSET_
     
     # form lists of bcds and cloads
     [bcd_dofs, bcd_values, cload_dofs, cload_values] = \
-    form_bcds_cloads(parts[0], READ_NSET_NAME, NDOF_NODE)
+    form_bcds_cloads(parts[0], dict_nset_data, NDOF_NODE)
 
     
     ###############################################################################
@@ -76,6 +84,8 @@ def kernel_program(inputfile, NDIM, NST, NDOF_NODE, ELEM_TYPES, Dmat, READ_NSET_
         
     
     return [parts, nodes, elem_lists, f, a, RF]
+
+
 
 
 
@@ -156,7 +166,7 @@ def form_elem_lists(part, NDOF_NODE, ELEM_TYPES):
 
 
 
-def form_bcds_cloads(part, READ_NSET_NAME, NDOF_NODE):
+def form_bcds_cloads(part, dict_nset_data, NDOF_NODE):
     """Form the boundary condition (bcd) and cload lists based on the data of part
     and the user-defined interpreter of nset names and user-expected no. of dofs 
     per node"""
@@ -167,13 +177,19 @@ def form_bcds_cloads(part, READ_NSET_NAME, NDOF_NODE):
     cload_values = []
     # form the lists
     for nset in part.nsets:
-#        bcd_dofs, bcd_values, cload_dofs, cload_values += \
-#        READ_NSET_NAME(nset.name, nset.setlist, NDOF_NODE) # does not work1
-        [temp_bcd_dofs, temp_bcd_values, temp_cload_dofs, temp_cload_values] = \
-        READ_NSET_NAME(nset.name, nset.setlist, NDOF_NODE)
-        bcd_dofs    += temp_bcd_dofs
-        bcd_values  += temp_bcd_values
-        cload_dofs   += temp_cload_dofs
-        cload_values += temp_cload_values
+        nsetdata = dict_nset_data.get(nset.name)
+        if nsetdata is None:
+            print("WARNING: unrecognized nset name:"+nset.name)
+        else:
+            if nsetdata.settype == 'bcd':
+                for inode in nset.setlist:
+                    bcd_dofs += [inode*NDOF_NODE+x for x in nsetdata.nodalDofs]
+                    bcd_values += nsetdata.dofValues
+            elif nsetdata.settype == 'cload':
+                for inode in nset.setlist:
+                    cload_dofs += [inode*NDOF_NODE+x for x in nsetdata.nodalDofs]
+                    cload_values += nsetdata.dofValues
+            else:
+                print("WARNING: unrecognized nsetdata type:"+nsetdata.settype)
         
     return [bcd_dofs, bcd_values, cload_dofs, cload_values]
