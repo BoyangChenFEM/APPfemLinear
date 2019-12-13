@@ -40,35 +40,36 @@ import matplotlib.pyplot as plt
 
 # set input file name
 #jobname = 'salome-test3disp'
-jobname = 'Tri3fFEMdload'
+jobname = 'FrameTruss'
 inputfile = jobname+'.inp'
 
 # Define dimensional parameters
 NDIM = 2 # no. of dimensions
-NST  = 3 # no. of strains/stresses
-NDOF_NODE = 2 # no. of dofs per node
-ELEM_TYPES = ('CPS3', 'CPE3') # expected element types in the inp file
+NST  = 1 # no. of strains/stresses
+NDOF_NODE = 3 # no. of dofs per node
+ELEM_TYPES = ('T2D2', 'B23') # expected element types in the inp file
 dimData = dimension_data(NDIM, NST, NDOF_NODE, ELEM_TYPES)
 
-# Define material parameters
-E  = 200000.  # Young's modulus, MPa
-nu = 0.3     # Poisson ratio
-t  = 50.      # thickness out of plane, mm
-is_planestress = True
+# Define material & section parameters
+E       = 10000.  # Young's modulus, MPa
+b       = 100    # mm
+h       = 100    # mm
+A_truss = 1000   # mm^2
+A_frame = b*h    # mm^2
+I       = b*h**3/12 # mm^4
+
 # define the list of material sections
-Materials = [linear_elastic.isotropic2D(E, nu, t, is_planestress)]
+Materials = [linear_elastic.truss(E, A_truss), linear_elastic.frame2D(E, A_frame, I)]
 #------------------------------------------------------------------------------
 # define the interpreter connecting elset names to Materials list index 
 #------------------------------------------------------------------------------
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # !!! ADD/MODIFY THE SET NAMES BELOW TO BE CONSISTENT WITH INPUT FILE !!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-dict_elset_matID = {}
+dict_elset_matID = {'TrussElems':0, 'FrameElems':1}
 
 # Define the concentrated loads and bcds
-P = -1000. # N
-applied_disp_u1 = 1 # mm
-applied_disp_u2 = -3 # mm
+P = -5000. # N
 #------------------------------------------------------------------------------
 # Define interpretations of nset names to form lists of bcds and loads
 #------------------------------------------------------------------------------
@@ -76,27 +77,21 @@ applied_disp_u2 = -3 # mm
 # !!! ADD/MODIFY THE SET NAMES BELOW TO BE CONSISTENT WITH INPUT FILE !!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 dict_nset_data = {\
-'fix-all'   : nset_data(settype='bcd', nodalDofs=list(range(NDOF_NODE)), dofValues=[0]*NDOF_NODE),\
-'fix-dir1'  : nset_data(settype='bcd', nodalDofs=[0], dofValues=[0]),\
-'fix-dir2'  : nset_data(settype='bcd', nodalDofs=[1], dofValues=[0]),\
-'disp-dir1' : nset_data(settype='bcd', nodalDofs=[0], dofValues=[applied_disp_u1]),\
-'disp-dir2' : nset_data(settype='bcd', nodalDofs=[1], dofValues=[applied_disp_u2]),\
-'cload-dir1': nset_data(settype='cload', nodalDofs=[0], dofValues=[P]),\
-'cload-dir2': nset_data(settype='cload', nodalDofs=[1], dofValues=[P]) }
+'FrameBL'   : nset_data(settype='bcd', nodalDofs=list(range(NDOF_NODE)), dofValues=[0]*NDOF_NODE),\
+'FrameTR'   : nset_data(settype='bcd', nodalDofs=list(range(NDOF_NODE)), dofValues=[0]*NDOF_NODE),\
+'TrussBR'   : nset_data(settype='bcd', nodalDofs=[0, 1], dofValues=[0, 0]),\
+'LoadPoint' : nset_data(settype='cload', nodalDofs=[1], dofValues=[P]) }
 
 # Define the distributed loads (user-defined)
-def func_dload(pos_vec):
-    x = pos_vec[0]
-    y = pos_vec[1]
-    # define x component of the applied traction function
+# for this problem, it is defined in frame's local coordinates, uniformly
+# distributed.
+def func_dload():
+    # define local x component of the applied traction function
     tx = 0
-    # define y component of the applied traction function
-    eps = 1.E-9 # a small number for tolerance
-    y_surf = 50
-    if abs(y-y_surf) < eps:
-        ty = -2 # N/mm
+    # define local y component of the applied traction function
+    ty = -1 # N/mm
     return [tx, ty]
-dload_functions = [dload_function(expression=func_dload, order=0)]
+dload_functions = [dload_function(expression=func_dload, coord_system='local', order=0)]
 
 #------------------------------------------------------------------------------
 # define the interpreter connecting elset names to dloads list index 
@@ -104,7 +99,7 @@ dload_functions = [dload_function(expression=func_dload, order=0)]
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # !!! ADD/MODIFY THE SET NAMES BELOW TO BE CONSISTENT WITH INPUT FILE !!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-dict_elset_dloadID = {'dload1':0}
+dict_elset_dloadID = {'q_elems':0}
 
 
 ###############################################################################
@@ -147,4 +142,3 @@ plt.show()
 # Default VTK output of data for visualization using Paraview
 #------------------------------------------------------------------------------
 vtkoutput(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE)
-vtkoutput_ig(jobname, elem_lists, NST)

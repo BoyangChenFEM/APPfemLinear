@@ -6,6 +6,7 @@ Functions for a 2D 3-node linear triangular element
 """
 import numpy as np
 import numpy.linalg as la
+from ..Materials import linear_elastic
         
 
 class frame2d2elem:
@@ -23,32 +24,32 @@ class frame2d2elem:
         nodes: coordinates of the nodes
         Material : provides material stiffness matrix/constants
         """
-        E = Material.E
-        A_cross = Material.A
-        I = Material.I
         # calculate the length of the bar element
         L = la.norm(nodes[1] - nodes[0])
         # calculate the transformation matrix
         T = T_matrix(nodes[0], nodes[1])
-        # calculate the local stiffness matrix K_e before rotation
-        # K_t: truss part of the stiffness matrix
-        # K_b: beam part of the stiffness matrix
-        K_t = E*A_cross/L* \
-        np.array([[ 1,  0,  0, -1,  0,  0],\
-                  [ 0,  0,  0,  0,  0,  0],\
-                  [ 0,  0,  0,  0,  0,  0],\
-                  [-1,  0,  0,  1,  0,  0],\
-                  [ 0,  0,  0,  0,  0,  0],\
-                  [ 0,  0,  0,  0,  0,  0]])
-        K_b = E*I* \
-        np.array([[ 0,        0,       0,  0,        0,       0],\
-                  [ 0,  12/L**3,  6/L**2,  0, -12/L**3,  6/L**2],\
-                  [ 0,   6/L**2,     4/L,  0,  -6/L**2,     2/L],\
-                  [ 0,        0,       0,  0,        0,       0],\
-                  [ 0, -12/L**3, -6/L**2,  0,  12/L**3, -6/L**2],\
-                  [ 0,   6/L**2,     2/L,  0,  -6/L**2,     4/L]])
-        # rotate the total local stiffness matrix to x-y coordinates
-        K = T@(K_t+K_b)@T.T
+        
+        # define the stiffness matrix based on material type
+        # here, both truss and frame2D materials are supported
+        
+        # first, calculate the truss part in any case
+        K_t = K_truss(Material.E, Material.A, L)
+        
+        # form K based on material type
+        if isinstance(Material, linear_elastic.truss):
+            # add dummy stiffness 1 to the diagonal terms on theta1 & theta2
+            # to avoid singular matrix
+            K_t[2,2] = 1
+            K_t[5,5] = 1
+            # rotate the total local stiffness matrix to x-y coordinates
+            K = T@K_t@T.T
+        elif isinstance(Material, linear_elastic.frame2D):
+            K_b = K_beam(Material.E, Material.I, L)
+            # rotate the total local stiffness matrix to x-y coordinates
+            K = T@(K_t+K_b)@T.T
+        else:
+            print('WARNING: unsupported material in frame2delem')
+            
         return K
     
     @staticmethod
@@ -59,7 +60,7 @@ class frame2d2elem:
         """
         fext = np.zeros([6,1])
         if dload.coord_system == 'local' and dload.order == 0:
-            fext = fext_dload_uniform(nodes, dload.expression)
+            fext = fext_dload_uniform(nodes, dload.expression())
         else:
             print('WARNING: global or non-uniformly distributed load on frames\
                   is not yet implemented.')
@@ -86,6 +87,27 @@ def T_matrix(node1, node2):
                   [       0,         0,  0,         0,          0,  1]])
     return T
 
+
+def K_truss(E, A_cross, L):
+    K_t = E*A_cross/L* \
+    np.array([[ 1,  0,  0, -1,  0,  0],\
+              [ 0,  0,  0,  0,  0,  0],\
+              [ 0,  0,  0,  0,  0,  0],\
+              [-1,  0,  0,  1,  0,  0],\
+              [ 0,  0,  0,  0,  0,  0],\
+              [ 0,  0,  0,  0,  0,  0]])
+    return K_t
+
+
+def K_beam(E, I, L):
+    K_b = E*I* \
+    np.array([[ 0,        0,       0,  0,        0,       0],\
+              [ 0,  12/L**3,  6/L**2,  0, -12/L**3,  6/L**2],\
+              [ 0,   6/L**2,     4/L,  0,  -6/L**2,     2/L],\
+              [ 0,        0,       0,  0,        0,       0],\
+              [ 0, -12/L**3, -6/L**2,  0,  12/L**3, -6/L**2],\
+              [ 0,   6/L**2,     2/L,  0,  -6/L**2,     4/L]])
+    return K_b
 
 
 def fext_dload_uniform(nodes, q):

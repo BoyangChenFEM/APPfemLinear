@@ -39,7 +39,12 @@ def vtkoutput1part(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE):
         elnumlist = []
         for elist in elem_lists:
             nelem += len(elist.elems)
-            if elist.eltype in param.tuple_tri2d3_eltypes:
+            if elist.eltype in param.tuple_frame2d2_eltypes:
+                # frame2d2 elem has 3 data: elem index and 2 node indices
+                nsize += 3*len(elist.elems)
+                # frame2d2 elem has eltype number 3 in vtk format (see below)
+                for i in range(len(elist.elems)): elnumlist.append(3)
+            elif elist.eltype in param.tuple_tri2d3_eltypes:
                 # tri elem has 4 data: elem index and node indices
                 nsize += 4*len(elist.elems)
                 # tri elem has eltype number 5 in vtk format (see below)

@@ -13,7 +13,7 @@ This module is called by the job file (e.g., Job-1.py)
 import numpy as np
 from . import Parameters as param
 from .Preprocessing import read_abaqus_parts as read_abaqus
-from .Elements import tri2d3elem
+from .Elements import frame2d2elem, tri2d3elem
 from .Solvers import assembler, direct_solver_edu as solver
 
 # =================================================
@@ -178,9 +178,17 @@ def form_elem_lists(part, NDOF_NODE, ELEM_TYPES, dict_elset_matID):
             for elem_cnc_node in elem_group.cnc_node:
                 # obtain the element's dof connectivity list
                 elem_cnc_dof = form_elem_cnc_dof(elem_cnc_node, NDOF_NODE)
-                # form this element based on its eltype and using its node and dof cnc lists
-                if elem_group.eltype in param.tuple_tri2d3_eltypes:
+                #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                # form this element based on its eltype and using its node and 
+                # dof cnc lists; to be updated with every new element class
+                #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                if elem_group.eltype in param.tuple_frame2d2_eltypes:
+                    elems.append(frame2d2elem.frame2d2elem(elem_cnc_node, elem_cnc_dof))
+                elif elem_group.eltype in param.tuple_tri2d3_eltypes:
                     elems.append(tri2d3elem.tri2d3elem(elem_cnc_node, elem_cnc_dof))
+                else:
+                    print('WARNING: this eltype is not added in elem_lists:'\
+                          +elem_group.eltype)
             # form the elem_list for this eltype and append to the full elem_lists
             elem_lists.append(elem_list(elem_group.eltype, elems))
     
