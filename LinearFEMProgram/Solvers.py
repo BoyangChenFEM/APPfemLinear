@@ -13,7 +13,7 @@ from scipy.sparse import lil_matrix
 import scipy.linalg as la
 from pypardiso import spsolve #Intel MKL Pardiso parrallel(shared memory) sparse matrix solver
 
-def assembler(nodes, elem_lists, NDOF_NODE, Dmat, dload_elset=None, dload_functions=None):
+def assembler(nodes, elem_lists, NDOF_NODE, Materials, list_dload_data=[]):
     """Assemble the system equation K a = f, where K is assembly of element 
     stiffness matrix and f is assembly of the element external force vector 
     due to distributed loading (if present); note that the concentrated forces
@@ -37,17 +37,18 @@ def assembler(nodes, elem_lists, NDOF_NODE, Dmat, dload_elset=None, dload_functi
         # extract the nodal coordinates of the element using cnc matrix
         elem_nodes = nodes[elem.cnc_node]
         # calculate the element stiffness matrix
-        K_e = elem.stiff_matrix(elem_nodes,Dmat)
+        K_e = elem.stiff_matrix(elem_nodes, Materials[elem.matID])
         # assemble K_e to K using cnc_dof matrix
         K[np.ix_(elem.cnc_dof[:],elem.cnc_dof[:])] += K_e[:,:]
     
     # get f_ext due to distributed loading
     # TO BE DEFINED (PLACE HOLDER ONLY)
-    if dload_elset is not None and dload_functions is not None:
-        for ie, dload_function in zip(dload_elset, dload_functions):
-            elem_nodes = nodes[elems[ie].cnc_node]
-            f_e = elems[ie].fext_dload(elem_nodes, dload_function)
-            f[elems[ie].cnc_dof] += f_e
+    if list_dload_data:
+        for dload in list_dload_data:
+            for ie in dload.elset:
+                elem_nodes = nodes[elems[ie].cnc_node]
+                f_e = elems[ie].fext_dload(elem_nodes, dload.function)
+                f[elems[ie].cnc_dof] += f_e
     
     return [K, f]
 

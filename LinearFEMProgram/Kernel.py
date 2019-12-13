@@ -19,11 +19,29 @@ from .Solvers import assembler, direct_solver_edu as solver
 # =================================================
 # Define classes for objects in kernel program
 # =================================================
+class dimension_data:
+    def __init__(self, NDIM, NST, NDOF_NODE, ELEM_TYPES):
+        self.NDIM = NDIM
+        self.NST  = NST
+        self.NDOF_NODE = NDOF_NODE
+        self.ELEM_TYPES = ELEM_TYPES
+
 class nset_data:
     def __init__(self, settype, nodalDofs, dofValues):
         self.settype = settype # either 'bcd' or 'cload'
         self.nodalDofs = nodalDofs # indices of affected nodal DoFs
         self.dofValues = dofValues # values of imposed disp or cload
+        
+class dload_function:
+    def __init__(self, expression, coord_system='global', order=0):
+        self.expression = expression
+        self.coord_system = coord_system
+        self.order = order
+
+class dload_data:
+    def __init__(self, elset, function):
+        self.elset = elset
+        self.function = function
 
 class elem_list:
     def __init__(self, eltype, elems=None):
@@ -33,7 +51,8 @@ class elem_list:
 
 
 
-def kernel_program(inputfile, NDIM, NST, NDOF_NODE, ELEM_TYPES, Dmat, dict_nset_data):
+def kernel_program(inputfile, dimData, Materials, dict_elset_matID, \
+                   dict_nset_data, dload_functions=[], dict_elset_dloadID={}):
     ###############################################################################
     # Preprocessing 
     ###############################################################################
@@ -46,22 +65,25 @@ def kernel_program(inputfile, NDIM, NST, NDOF_NODE, ELEM_TYPES, Dmat, dict_nset_
         raise ValueError('Only a single part is supported!')
     
     # verification of dimensional parameters before proceeding
-    verify_dimensional_parameters(parts[0], NDIM, NST, NDOF_NODE, ELEM_TYPES)
+    verify_dimensional_parameters(parts[0], dimData)
         
     # form lists of nodes and elems
     nodes = form_nodes(parts[0])
-    elem_lists = form_elem_lists(parts[0], NDOF_NODE, ELEM_TYPES)
+    elem_lists = form_elem_lists(parts[0], dimData.NDOF_NODE, dimData.ELEM_TYPES, dict_elset_matID)
     
     # form lists of bcds and cloads
     [bcd_dofs, bcd_values, cload_dofs, cload_values] = \
-    form_bcds_cloads(parts[0], dict_nset_data, NDOF_NODE)
+    form_bcds_cloads(parts[0], dict_nset_data, dimData.NDOF_NODE)
+    
+    # form lists of elset for distributed loads
+    list_dload_data = form_list_dload_data(parts[0], dict_elset_dloadID, dload_functions)
 
     
     ###############################################################################
     # Assembler 
     # obtain the full stiffness matrix K and external distributed force vector f
     ###############################################################################
-    [K, f] = assembler(nodes, elem_lists, NDOF_NODE, Dmat)
+    [K, f] = assembler(nodes, elem_lists, dimData.NDOF_NODE, Materials, list_dload_data)
     
     
     ###############################################################################
@@ -72,35 +94,25 @@ def kernel_program(inputfile, NDIM, NST, NDOF_NODE, ELEM_TYPES, Dmat, dict_nset_
     [a, RF] = solver(K, f, bcd_dofs, bcd_values, cload_dofs, cload_values)
     
     
-    ###############################################################################
-    # Update element igpoints for output/postprocessing
-    # modify the x, u, strain and stress of integration points of each element
-    ###############################################################################    
-    for elist in elem_lists:
-        for elem in elist.elems:
-            elnodes = nodes[elem.cnc_node]
-            eldofs  = a[elem.cnc_dof]
-            elem.update_igpoints(elnodes, Dmat, eldofs)
-        
-    
     return [parts, nodes, elem_lists, f, a, RF]
 
 
 
 
 
-def verify_dimensional_parameters(part, NDIM, NST, NDOF_NODE, ELEM_TYPES):
+def verify_dimensional_parameters(part, dimData):
+    
     for elem_group in part.elem_groups:
         # check if ndim from parts is the same as the user-defined NDIM above
-        if(not NDIM == param.dict_eltype_ndim.get(elem_group.eltype)):
+        if(not dimData.NDIM == param.dict_eltype_ndim.get(elem_group.eltype)):
             print("WARNING: User-defined no. of dimensions is not compatible\
                   with that in the input file for eltype: "+elem_group.eltype)
         # check if nst from parts is the same as the user-defined NST above
-        if(not NST == param.dict_eltype_nst.get(elem_group.eltype)):
+        if(not dimData.NST == param.dict_eltype_nst.get(elem_group.eltype)):
             print("WARNING: User-defined no. of strains is not compatible\
                   with that in the input file for eltype: "+elem_group.eltype)
         # check if ndof_node from parts is the same as the user-defined NDOF_NODE above
-        if(not NDOF_NODE == param.dict_eltype_ndofnode.get(elem_group.eltype)):
+        if(not dimData.NDOF_NODE == param.dict_eltype_ndofnode.get(elem_group.eltype)):
             print("WARNING: User-defined no. of dofs per node is not compatible\
                   with that in the input file for eltype: "+elem_group.eltype)
         # check if the element types in the input file are supported by the programme
@@ -109,7 +121,7 @@ def verify_dimensional_parameters(part, NDIM, NST, NDOF_NODE, ELEM_TYPES):
                   supported element types! This element will not be used in \
                   the analysis: "+elem_group.eltype)
         # check if the element types in the input file are the intended ones of the user
-        if(not elem_group.eltype in ELEM_TYPES):
+        if(not elem_group.eltype in dimData.ELEM_TYPES):
             print("WARNING: eltype: in the input file is not one of the \
                   user-defined/expected element types! This element will not \
                   be used in the analysis: "+elem_group.eltype)
@@ -131,7 +143,7 @@ def form_nodes(part):
 
 
 
-def form_elem_lists(part, NDOF_NODE, ELEM_TYPES):
+def form_elem_lists(part, NDOF_NODE, ELEM_TYPES, dict_elset_matID):
     """form the lists of elements for this part. They could be objects with 
     components and associated methods. requires user-defined no. of dofs per node 
     and expected element types for this part"""
@@ -145,6 +157,16 @@ def form_elem_lists(part, NDOF_NODE, ELEM_TYPES):
             # Python convension starts from 0 when setting the range below
             elem_cnc_dof.extend(list(range(jnd*ndof_node, (jnd+1)*ndof_node)))
         return elem_cnc_dof
+    
+    # inner function to update the matID of an element in the elem_lists object
+    def update_elem_matID(elem_lists, ie, matID):
+        istart = 0
+        for elem_list in elem_lists:
+            if istart <= ie < istart+len(elem_list.elems):
+                elem_list.elems[ie].matID = matID
+                break
+            istart += len(elem_list.elems)
+    
     
     elem_lists = []
     for elem_group in part.elem_groups:
@@ -161,6 +183,14 @@ def form_elem_lists(part, NDOF_NODE, ELEM_TYPES):
                     elems.append(tri2d3elem.tri2d3elem(elem_cnc_node, elem_cnc_dof))
             # form the elem_list for this eltype and append to the full elem_lists
             elem_lists.append(elem_list(elem_group.eltype, elems))
+    
+    # update matID of each element if dict_elset_matID it is not empty
+    if dict_elset_matID:
+        for elset in part.elsets:
+            if dict_elset_matID.get(elset.name) is not None:
+                matID = dict_elset_matID.get(elset.name)
+                for ie in elset.setlist:
+                    update_elem_matID(elem_lists, ie, matID)
     
     return elem_lists
 
@@ -193,3 +223,16 @@ def form_bcds_cloads(part, dict_nset_data, NDOF_NODE):
                 print("WARNING: unrecognized nsetdata type:"+nsetdata.settype)
         
     return [bcd_dofs, bcd_values, cload_dofs, cload_values]
+
+
+
+def form_list_dload_data(part, dict_elset_dloadID, dload_functions):
+    list_dload_data = []
+    
+    if dict_elset_dloadID:
+        for elset in part.elsets:
+            if dict_elset_dloadID.get(elset.name) is not None:
+                dloadID = dict_elset_dloadID.get(elset.name)
+                list_dload_data.append(dload_data(elset.setlist, dload_functions[dloadID]))
+    
+    return list_dload_data

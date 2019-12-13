@@ -39,8 +39,8 @@ import matplotlib.pyplot as plt
 
 
 # set input file name
-jobname = 'salome-test3disp'
-#jobname = 'Tri3fFEMmesh1'
+#jobname = 'salome-test3disp'
+jobname = 'Tri3fFEMdload'
 inputfile = jobname+'.inp'
 
 # Define dimensional parameters
@@ -84,15 +84,27 @@ dict_nset_data = {\
 'cload-dir1': nset_data(settype='cload', nodalDofs=[0], dofValues=[P]),\
 'cload-dir2': nset_data(settype='cload', nodalDofs=[1], dofValues=[P]) }
 
-# Define the distributed loads
-dload_functions = []
+# Define the distributed loads (user-defined)
+def func_dload(pos_vec):
+    x = pos_vec[0]
+    y = pos_vec[1]
+    # define x component of the applied traction function
+    tx = 0
+    # define y component of the applied traction function
+    eps = 1.E-9 # a small number for tolerance
+    y_surf = 50
+    if abs(y-y_surf) < eps:
+        ty = -2 # N/mm
+    return [tx, ty]
+dload_functions = [dload_function(expression=func_dload, order=0)]
+
 #------------------------------------------------------------------------------
 # define the interpreter connecting elset names to dloads list index 
 #------------------------------------------------------------------------------
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # !!! ADD/MODIFY THE SET NAMES BELOW TO BE CONSISTENT WITH INPUT FILE !!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-dict_elset_dloadID = {}
+dict_elset_dloadID = {'dload1':0}
 
 
 ###############################################################################
@@ -135,14 +147,4 @@ plt.show()
 # Default VTK output of data for visualization using Paraview
 #------------------------------------------------------------------------------
 vtkoutput(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE)
-
-#------------------------------------------------------------------------------
-# Update element igpoints for output/postprocessing
-# modify the x, u, strain and stress of integration points of each element
-#------------------------------------------------------------------------------ 
-for elist in elem_lists:
-    for elem in elist.elems:
-        elnodes = nodes[elem.cnc_node]
-        eldofs  = a[elem.cnc_dof]
-        elem.update_igpoints(elnodes, Materials[elem.matID], eldofs)
 vtkoutput_ig(jobname, elem_lists, NST)

@@ -11,53 +11,62 @@ from .integration_point import igpoint
 
 class tri2d3elem:
     
-    def __init__(self, cnc_node, cnc_dof):
+    def __init__(self, cnc_node, cnc_dof, matID=0):
         self.cnc_node  = cnc_node
         self.cnc_dof   = cnc_dof
+        self.matID     = matID
         # only 1 igpoint for this element type: at centroid, weight is the 
         # full area of the reference triangle in natural configuration
         self.igpoints  = [igpoint(xi=[1/3, 1/3])]
         
     @staticmethod
-    def stiff_matrix(nodes, Dmat):
+    def stiff_matrix(nodes, Material):
         """
         A function to calculate the stiffness matrix of the element 
         required inputs:
         nodes: coordinates of the nodes
-        Dmat : material stiffness matrix
+        Material: provides the material stiffness matrix
         """
         # calculate the area of the triangular element
         A = Area_triangle(nodes)
         # calculate the B matrix of the element
         B = B_matrix(nodes)
         # calculate the stiffness matrix K
-        K = B.T@Dmat@B*A
+        K = B.T@Material.Dmatrix@B*A
         return K
     
     @staticmethod
-    def fext_dload(nodes, dload_function):
+    def fext_dload(nodes, dload):
         """
         TO BE DEFINED (PLACE HOLDER ONLY)
         A function to calculate the external force vector of the element due to 
-        arbitrary distributed load along the edges of the element
+        arbitrary distributed load along the edges of the element. 
+        Needed only if the load function is complicated that the equivalent
+        nodal forces are not obvious to be derived and numerical integration 
+        is needed.
         required inputs:
         nodes : global x-y coordinates of the nodes of the element
-        dload_function : the distributed load vector as a function of (x,y)
+        dload.function : the distributed load vector as a function of (x,y)
+        dload.coord_system : the coordinate system of the function & its inputs
+        dload.order: order of the function, to decide on the num. of igpoints
         """
+        fext = np.zeros([6,1])
+            
+        return fext
 
-    def update_igpoints(self, nodes, Dmat, a):
+    def update_igpoints(self, nodes, Material, a):
         """
         A function to update igpoints of self
         required inputs:
-        nodes : coordinates of the nodes
-        Dmat  : material stiffness matrix
-        a     : dof vector of the element
+        nodes    : coordinates of the nodes
+        Material : provides material stiffness matrix
+        a        : dof vector of the element
         """
         # calculate & update position and displacement vectors
         self.igpoints[0].x = [1/3*np.sum(nodes[:,0]), 1/3*np.sum(nodes[:,1])]
         self.igpoints[0].u = [1/3*np.sum(a[0::2]),    1/3*np.sum(a[1::2])]
         # calculate strain and stress
-        [epsilon, sigma] = strain_stress(nodes, Dmat, a)
+        [epsilon, sigma] = strain_stress(nodes, Material.Dmatrix, a)
         # update to igpoint components
         self.igpoints[0].strain = epsilon
         self.igpoints[0].stress = sigma

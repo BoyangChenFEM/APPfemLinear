@@ -39,8 +39,7 @@ import matplotlib.pyplot as plt
 
 
 # set input file name
-jobname = 'salome-test3disp'
-#jobname = 'Tri3fFEMmesh1'
+jobname = 'Tri3fFEM2mats'
 inputfile = jobname+'.inp'
 
 # Define dimensional parameters
@@ -53,17 +52,19 @@ dimData = dimension_data(NDIM, NST, NDOF_NODE, ELEM_TYPES)
 # Define material parameters
 E  = 200000.  # Young's modulus, MPa
 nu = 0.3     # Poisson ratio
-t  = 50.      # thickness out of plane, mm
+t1 = 50.      # thickness out of plane, mm
+t2 = 5.
 is_planestress = True
 # define the list of material sections
-Materials = [linear_elastic.isotropic2D(E, nu, t, is_planestress)]
+Materials = [linear_elastic.isotropic2D(E, nu, t1, is_planestress),\
+             linear_elastic.isotropic2D(E, nu, t2, is_planestress)]
 #------------------------------------------------------------------------------
 # define the interpreter connecting elset names to Materials list index 
 #------------------------------------------------------------------------------
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # !!! ADD/MODIFY THE SET NAMES BELOW TO BE CONSISTENT WITH INPUT FILE !!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-dict_elset_matID = {}
+dict_elset_matID = {'mat1':0, 'mat2':1}
 
 # Define the concentrated loads and bcds
 P = -1000. # N
@@ -139,7 +140,7 @@ vtkoutput(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE)
 #------------------------------------------------------------------------------
 # Update element igpoints for output/postprocessing
 # modify the x, u, strain and stress of integration points of each element
-#------------------------------------------------------------------------------ 
+#------------------------------------------------------------------------------    
 for elist in elem_lists:
     for elem in elist.elems:
         elnodes = nodes[elem.cnc_node]
