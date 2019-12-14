@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Nov 26 23:40:59 2019
+A module of classes and methods for linear elastic materials and sections
 
-@author: Boyang
+@author: Boyang CHEN, TU Delft Aerospace, 2019
 """
 import numpy as np
 

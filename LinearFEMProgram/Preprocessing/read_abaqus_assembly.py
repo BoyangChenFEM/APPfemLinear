@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Nov  6 17:26:43 2019
-
 Abaqus input file reader for assembly
 
-@author: Boyang CHEN TU Delft
+@author: Boyang CHEN, TU Delft Aerospace, 2019
 """
 from read_abaqus_parts import read_set_name, read_set_list
 

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Nov 01 2019
-Functions for a 2D 3-node linear triangular element
-@author: Boyang CHEN TU Delft
+Class and functions for a 2D 3-node linear triangular element
+
+@author: Boyang CHEN, TU Delft Aerospace, 2019
 """
 import numpy as np
 import numpy.linalg as la
@@ -10,13 +10,16 @@ from .integration_point import igpoint
         
 
 class tri2d3elem:
-    
+    """class for tri2d3 element, with components:
+        - cnc_node: nodal connectivity of this element
+        - cnc_dof: dof connectivity of this element
+        - matID: material ID of this element, default=0
+        - igpoints: integration points; only 1 igpoint for this element type
+        at centroid, for postprocessing only """ 
     def __init__(self, cnc_node, cnc_dof, matID=0):
         self.cnc_node  = cnc_node
         self.cnc_dof   = cnc_dof
         self.matID     = matID
-        # only 1 igpoint for this element type: at centroid, weight is the 
-        # full area of the reference triangle in natural configuration
         self.igpoints  = [igpoint(xi=[1/3, 1/3])]
         
     @staticmethod
@@ -46,7 +49,7 @@ class tri2d3elem:
         is needed.
         required inputs:
         nodes : global x-y coordinates of the nodes of the element
-        dload.function : the distributed load vector as a function of (x,y)
+        dload.function : the distributed load vector as a function of coordinates
         dload.coord_system : the coordinate system of the function & its inputs
         dload.order: order of the function, to decide on the num. of igpoints
         """

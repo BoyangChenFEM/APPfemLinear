@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Nov  6 10:39:08 2019
-A module to store problem-independent parameters. 
-They should be used by the Kernel only.
-@author: Boyang
+A module to store problem-independent parameters of the programme 
+
+@author: Boyang CHEN, TU Delft Aerospace, 2019
 """
 # no. of decimal places for output purposes
 num_decimal_for_output = 6

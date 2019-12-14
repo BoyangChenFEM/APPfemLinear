@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Dec  6 22:08:27 2019
+Functions for writing output files
 
-@author: Boyang
+@author: Boyang CHEN, TU Delft Aerospace, 2019
 """
 from . import Parameters as param
 
@@ -132,7 +132,7 @@ def vtkoutput1part(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE):
 
 
         
-def vtkoutput1part_igpoints(jobname, elem_lists, NST):
+def vtkoutput1part_igpoints(jobname, elem_lists):
     """program to write integration point data such as its position, 
     displacement vector, strain and stress to vtk format"""
     
@@ -159,10 +159,14 @@ def vtkoutput1part_igpoints(jobname, elem_lists, NST):
         ulist = []
         strainlist = []
         stresslist = []
+        NST = 0 # number of strain/stress, initialize to 0
         for elist in elem_lists:
             if elist.eltype in param.tuple_tri2d3_eltypes:
                 # tri elem has 1 ig point
                 nsize += len(elist.elems)
+                # tri elem has 3 strains
+                NST = param.dict_eltype_nst.get(elist.eltype)
+                # form datalists for tri2d3 elem igpoints
                 for elem in elist.elems:
                     xlist.append(elem.igpoints[0].x)
                     ulist.append(elem.igpoints[0].u)

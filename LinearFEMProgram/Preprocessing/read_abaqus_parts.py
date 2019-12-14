@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Nov  5 12:05:36 2019
-
 Abaqus input file reader for parts
 
-@author: Boyang CHEN TU Delft
+@author: Boyang CHEN, TU Delft Aerospace, 2019
 """
 
 # =================================================

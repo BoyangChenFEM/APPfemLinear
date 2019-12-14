@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Dec 10 22:05:38 2019
+Class for an integration point in a continuum element
 
-@author: Boyang
+@author: Boyang CHEN, TU Delft Aerospace, 2019
 """
 
 class igpoint:

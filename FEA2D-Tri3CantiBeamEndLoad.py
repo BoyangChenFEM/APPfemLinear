@@ -1,98 +1,63 @@
 """
-Created on Fri Nov 01 2019
-Finite Element Programme
-Job file for linear elastic analysis under concentrated loads
-The main program reads mesh and nsets from the part definition of Abaqus input 
-file (only a single part is supported) and form the lists of nodes and elems.
-It forms the lists of bcds, cloads (concentrated loads) and dloads (distributed
-loads). It supports multiple materials and multiple element types with the 
-same number of nodal DoFs: 
-- tri3, quad4, tri6 and quad8 are compatible
-- frame2d and truss2d are not compatible
-- truss must be modelled by frame elems with a truss stiff matrix
-@author: Boyang CHEN TU Delft
+Job script for linear elastic analysis
+
+for a rectangular cantilever beam under end force loading, meshed with linear
+triangular elements.
+
+@author: Boyang CHEN, TU Delft Aerospace, 2019
 """
 
 # import the main program interface of LinearFEMProgram
 from LinearFEMProgram.Kernel import dimension_data, nset_data, dload_function,\
                                     kernel_program
 # import the default output program to write outputs in vtk format
-from LinearFEMProgram.output import vtkoutput1part as vtkoutput, \
-                                    vtkoutput1part_igpoints as vtkoutput_ig
-## for debugging
-#from LinearFEMProgram.Preprocessing import read_abaqus_parts as read_abaqus
-#from LinearFEMProgram.Kernel import form_nodes_elems, form_bcds_cloads
-#import numpy as np
-## end debugging
+from LinearFEMProgram.output import vtkoutput1part as vtkoutput
 
 ###############################################################################
 # User-defined problem-specific parameters
-# for dimension, no. of strains, no. of dofs per node, material parameters,
-# material stiffness matrix, load values, and nset names of the applied 
-# loads and boundary conditions
 ###############################################################################
 
 # import the right material module
 from LinearFEMProgram.Materials import linear_elastic
+# import program to write igpoint outputs in vtk format (for solid elems only)
+from LinearFEMProgram.output import vtkoutput1part_igpoints as vtkoutput_ig
 # import modules for user-defined fast visualization in Python console
 import matplotlib.pyplot as plt
 
 
 # set input file name
-jobname = 'salome-test3disp'
-#jobname = 'Tri3fFEMmesh1'
+jobname = 'Tri3fFEMmesh1'
 inputfile = jobname+'.inp'
 
 # Define dimensional parameters
 NDIM = 2 # no. of dimensions
-NST  = 3 # no. of strains/stresses
 NDOF_NODE = 2 # no. of dofs per node
 ELEM_TYPES = ('CPS3', 'CPE3') # expected element types in the inp file
-dimData = dimension_data(NDIM, NST, NDOF_NODE, ELEM_TYPES)
+dimData = dimension_data(NDIM, NDOF_NODE, ELEM_TYPES)
 
 # Define material parameters
 E  = 200000.  # Young's modulus, MPa
 nu = 0.3     # Poisson ratio
 t  = 50.      # thickness out of plane, mm
 is_planestress = True
-# define the list of material sections
+# define the list of materials/sections
 Materials = [linear_elastic.isotropic2D(E, nu, t, is_planestress)]
-#------------------------------------------------------------------------------
-# define the interpreter connecting elset names to Materials list index 
-#------------------------------------------------------------------------------
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# !!! ADD/MODIFY THE SET NAMES BELOW TO BE CONSISTENT WITH INPUT FILE !!!
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-dict_elset_matID = {}
 
 # Define the concentrated loads and bcds
 P = -1000. # N
-applied_disp_u1 = 1 # mm
-applied_disp_u2 = -3 # mm
 #------------------------------------------------------------------------------
 # Define interpretations of nset names to form lists of bcds and loads
 #------------------------------------------------------------------------------
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # !!! ADD/MODIFY THE SET NAMES BELOW TO BE CONSISTENT WITH INPUT FILE !!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# nodes in nset named 'fix-all' will be fully constrained
+# nodes in nset named 'cload-dir2' will be loaded in force along y by
+# a value represented by the variable P
 dict_nset_data = {\
 'fix-all'   : nset_data(settype='bcd', nodalDofs=list(range(NDOF_NODE)), dofValues=[0]*NDOF_NODE),\
-'fix-dir1'  : nset_data(settype='bcd', nodalDofs=[0], dofValues=[0]),\
-'fix-dir2'  : nset_data(settype='bcd', nodalDofs=[1], dofValues=[0]),\
-'disp-dir1' : nset_data(settype='bcd', nodalDofs=[0], dofValues=[applied_disp_u1]),\
-'disp-dir2' : nset_data(settype='bcd', nodalDofs=[1], dofValues=[applied_disp_u2]),\
-'cload-dir1': nset_data(settype='cload', nodalDofs=[0], dofValues=[P]),\
 'cload-dir2': nset_data(settype='cload', nodalDofs=[1], dofValues=[P]) }
 
-# Define the distributed loads
-dload_functions = []
-#------------------------------------------------------------------------------
-# define the interpreter connecting elset names to dloads list index 
-#------------------------------------------------------------------------------
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# !!! ADD/MODIFY THE SET NAMES BELOW TO BE CONSISTENT WITH INPUT FILE !!!
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-dict_elset_dloadID = {}
 
 
 ###############################################################################
@@ -100,8 +65,7 @@ dict_elset_dloadID = {}
 # return all data for postprocessing
 ###############################################################################
 [InputPartsData, nodes, elem_lists, f, a, RF] = \
-kernel_program(inputfile, dimData, Materials, dict_elset_matID, \
-               dict_nset_data, dload_functions, dict_elset_dloadID)
+kernel_program(inputfile, dimData, Materials, dict_nset_data)
 
 
 
@@ -109,6 +73,11 @@ kernel_program(inputfile, dimData, Materials, dict_elset_matID, \
 ###############################################################################
 # Postprocessing (Problem-specific) 
 ###############################################################################
+#------------------------------------------------------------------------------
+# Default VTK output of data for visualization using Paraview
+#------------------------------------------------------------------------------
+vtkoutput(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE)
+
 #------------------------------------------------------------------------------
 # simple plotting within Python console for fast visualization
 #------------------------------------------------------------------------------
@@ -131,10 +100,6 @@ plt.legend(loc='best')
 #plt.savefig("deformedmeshscale100.pdf")
 plt.show()
 
-#------------------------------------------------------------------------------
-# Default VTK output of data for visualization using Paraview
-#------------------------------------------------------------------------------
-vtkoutput(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE)
 
 #------------------------------------------------------------------------------
 # Update element igpoints for output/postprocessing
@@ -145,4 +110,4 @@ for elist in elem_lists:
         elnodes = nodes[elem.cnc_node]
         eldofs  = a[elem.cnc_dof]
         elem.update_igpoints(elnodes, Materials[elem.matID], eldofs)
-vtkoutput_ig(jobname, elem_lists, NST)
+vtkoutput_ig(jobname, elem_lists)

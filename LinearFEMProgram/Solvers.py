@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Nov 11 00:16:16 2019
-
 Linear FEM Assembler and Solver
-They are put in the same module because they need to be consistent in 
-the format of K
 
-@author: Boyang
+They are put in the same module because they need to be consistent in 
+the data format of K (sparse or not)
+
+@author: Boyang CHEN, TU Delft Aerospace, 2019
 """
 import numpy as np
-from scipy.sparse import lil_matrix
+from scipy.sparse import lil_matrix # sparse matrix format as linked list
 import scipy.linalg as la
 from pypardiso import spsolve #Intel MKL Pardiso parrallel(shared memory) sparse matrix solver
 

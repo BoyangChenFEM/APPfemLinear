@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Nov 01 2019
-Functions for a 2D 3-node linear triangular element
-@author: Boyang CHEN TU Delft
+Class and functions for a 2D 2-node frame element
+
+@author: Boyang CHEN, TU Delft Aerospace, 2019
 """
 import numpy as np
 import numpy.linalg as la
@@ -10,7 +10,10 @@ from ..Materials import linear_elastic
         
 
 class frame2d2elem:
-    
+    """class for frame2d2 element, with components:
+        - cnc_node: nodal connectivity of this element
+        - cnc_dof: dof connectivity of this element
+        - matID: material ID of this element, default=0"""    
     def __init__(self, cnc_node, cnc_dof, matID=0):
         self.cnc_node  = cnc_node
         self.cnc_dof   = cnc_dof
@@ -22,7 +25,8 @@ class frame2d2elem:
         A function to calculate the stiffness matrix of the element 
         required inputs:
         nodes: coordinates of the nodes
-        Material : provides material stiffness matrix/constants
+        Material : provides material stiffness matrix/constants; it can be both
+        truss and frame in type
         """
         # calculate the length of the bar element
         L = la.norm(nodes[1] - nodes[0])
@@ -56,7 +60,7 @@ class frame2d2elem:
     def fext_dload(nodes, dload):
         """
         nodes : global x-y coordinates of the nodes of the element
-        dload : the distributed load vector as a function of (x,y)
+        dload : the distributed load data as object dload_data
         """
         fext = np.zeros([6,1])
         if dload.coord_system == 'local' and dload.order == 0:
