@@ -44,6 +44,10 @@ class dload_data:
         self.function = function
 
 class elem_list:
+    """A list of elements of the same type
+    components: 
+    - eltype: the element type) 
+    - elems: the indices of elements"""
     def __init__(self, eltype, elems=None):
         self.eltype = eltype
         self.elems  = elems
@@ -52,7 +56,7 @@ class elem_list:
 
 
 def kernel_program(inputfile, dimData, Materials, dict_elset_matID, \
-                   dict_nset_data, dload_functions=[], dict_elset_dloadID={}):
+                   dict_nset_data, dict_elset_dload={}):
     ###############################################################################
     # Preprocessing 
     ###############################################################################
@@ -67,7 +71,7 @@ def kernel_program(inputfile, dimData, Materials, dict_elset_matID, \
     # verification of dimensional parameters before proceeding
     verify_dimensional_parameters(parts[0], dimData)
         
-    # form lists of nodes and elems
+    # form lists of nodes and elem_lists (eltype and elem indices of this type)
     nodes = form_nodes(parts[0])
     elem_lists = form_elem_lists(parts[0], dimData.NDOF_NODE, dimData.ELEM_TYPES, dict_elset_matID)
     
@@ -76,14 +80,19 @@ def kernel_program(inputfile, dimData, Materials, dict_elset_matID, \
     form_bcds_cloads(parts[0], dict_nset_data, dimData.NDOF_NODE)
     
     # form lists of elset for distributed loads
-    list_dload_data = form_list_dload_data(parts[0], dict_elset_dloadID, dload_functions)
+    list_dload_data = form_list_dload_data(parts[0], dict_elset_dload)
 
     
     ###############################################################################
     # Assembler 
     # obtain the full stiffness matrix K and external distributed force vector f
     ###############################################################################
-    [K, f] = assembler(nodes, elem_lists, dimData.NDOF_NODE, Materials, list_dload_data)
+    # form the list of all the elems for assembly
+    elems = []
+    for elist in elem_lists:
+        elems.extend(elist.elems)
+    # call assembler
+    [K, f] = assembler(nodes, elems, dimData.NDOF_NODE, Materials, list_dload_data)
     
     
     ###############################################################################
@@ -234,13 +243,13 @@ def form_bcds_cloads(part, dict_nset_data, NDOF_NODE):
 
 
 
-def form_list_dload_data(part, dict_elset_dloadID, dload_functions):
+def form_list_dload_data(part, dict_elset_dload):
     list_dload_data = []
     
-    if dict_elset_dloadID:
+    if dict_elset_dload:
         for elset in part.elsets:
-            if dict_elset_dloadID.get(elset.name) is not None:
-                dloadID = dict_elset_dloadID.get(elset.name)
-                list_dload_data.append(dload_data(elset.setlist, dload_functions[dloadID]))
+            if dict_elset_dload.get(elset.name) is not None:
+                dload_function = dict_elset_dload.get(elset.name)
+                list_dload_data.append(dload_data(elset.setlist, dload_function))
     
     return list_dload_data

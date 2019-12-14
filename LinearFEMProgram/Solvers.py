@@ -13,7 +13,7 @@ from scipy.sparse import lil_matrix
 import scipy.linalg as la
 from pypardiso import spsolve #Intel MKL Pardiso parrallel(shared memory) sparse matrix solver
 
-def assembler(nodes, elem_lists, NDOF_NODE, Materials, list_dload_data=[]):
+def assembler(nodes, elems, NDOF_NODE, Materials, list_dload_data=[]):
     """Assemble the system equation K a = f, where K is assembly of element 
     stiffness matrix and f is assembly of the element external force vector 
     due to distributed loading (if present); note that the concentrated forces
@@ -26,11 +26,6 @@ def assembler(nodes, elem_lists, NDOF_NODE, Materials, list_dload_data=[]):
     #K = np.zeros([ndofs,ndofs])
     K = lil_matrix((ndofs,ndofs)) #sparse matrix, lil format
     f = np.zeros([ndofs,1])
-
-    # form elems
-    elems = []
-    for elist in elem_lists:
-        elems.extend(elist.elems)
     
     # Calculate element stiffness matrix K_e and assemble to K
     for elem in elems:    

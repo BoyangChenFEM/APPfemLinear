@@ -94,12 +94,12 @@ def func_dload():
 dload_functions = [dload_function(expression=func_dload, coord_system='local', order=0)]
 
 #------------------------------------------------------------------------------
-# define the interpreter connecting elset names to dloads list index 
+# define the interpreter connecting elset names to dload functions above 
 #------------------------------------------------------------------------------
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # !!! ADD/MODIFY THE SET NAMES BELOW TO BE CONSISTENT WITH INPUT FILE !!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-dict_elset_dloadID = {'q_elems':0}
+dict_elset_dload = {'q_elems': dload_functions[0]}
 
 
 ###############################################################################
@@ -108,7 +108,7 @@ dict_elset_dloadID = {'q_elems':0}
 ###############################################################################
 [InputPartsData, nodes, elem_lists, f, a, RF] = \
 kernel_program(inputfile, dimData, Materials, dict_elset_matID, \
-               dict_nset_data, dload_functions, dict_elset_dloadID)
+               dict_nset_data, dict_elset_dload)
 
 
 
