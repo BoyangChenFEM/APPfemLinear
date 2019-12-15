@@ -139,7 +139,7 @@ def fext_dload_uniform(nodes, q):
 
 
 
-def strain_stress(nodes, a_glb, E, h, point):
+def strain_stress(nodes, a_glb, Material, h, point):
     """ A function to calculate the strain and stress
      required inputs:
      node 1 & 2 : global x-y coordinates of the two end nodes
@@ -157,9 +157,16 @@ def strain_stress(nodes, a_glb, E, h, point):
     y = point[1]*h
     # axial B matrix, using the gradient of the axial shape function 
     Ba = np.array([-1/L, 0, 0, 1/L, 0, 0])
-    # Bending B matrix: Bb = d^2 N_bending / dx^2
-    Bb = np.array([0, 12*x/L**3-6/L**2, 6*x/L**2-4/L, 0, 6/L**2-12*x/L**3, 6*x/L**2-2/L])
-    # Axial strain = Ba*a, Bending strain = - y*Bb*a
-    epsilon = Ba@a - y*Bb@a
-    sigma   = E*epsilon
+    
+    if isinstance(Material, linear_elastic.truss):
+        epsilon = Ba@a
+    elif isinstance(Material, linear_elastic.frame2D):
+        # Bending B matrix: Bb = d^2 N_bending / dx^2
+        Bb = np.array([0, 12*x/L**3-6/L**2, 6*x/L**2-4/L, 0, 6/L**2-12*x/L**3, 6*x/L**2-2/L])
+        # Axial strain = Ba*a, Bending strain = - y*Bb*a
+        epsilon = Ba@a - y*Bb@a
+    else:
+        print('WARNING: unsupported material in frame2delem')
+    
+    sigma   = Material.E*epsilon
     return [epsilon,sigma]

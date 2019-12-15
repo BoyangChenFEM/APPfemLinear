@@ -20,8 +20,12 @@ from LinearFEMProgram.output import vtkoutput1part as vtkoutput
 
 # import the right material module
 from LinearFEMProgram.Materials import linear_elastic
+# import the element stress-strain function for postprocessing
+from LinearFEMProgram.Elements import frame2d2elem
 # import modules for user-defined fast visualization in Python console
 import matplotlib.pyplot as plt
+import numpy as np
+from prettytable import PrettyTable
 
 
 # set input file name
@@ -115,25 +119,79 @@ kernel_program(inputfile, dimData, Materials, dict_nset_data, \
 vtkoutput(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE)
 
 #------------------------------------------------------------------------------
-# simple plotting within Python console for fast visualization
+# simple plotting within Python console for visualization of mesh
 #------------------------------------------------------------------------------
 r=100 # scaling factor for deformed plot
 #plt.figure(figsize=[6.4,9.6])
-# plot undeformed nodes
-plt.plot(nodes[:,0],nodes[:,1],'.b',label='initial mesh')
+plt.figure()
+for elist in elem_lists:
+    for elem in elist.elems:
+        elnodes = nodes[elem.cnc_node]
+        eldofs  = a[elem.cnc_dof]
+        # undeformed
+        x_init = elnodes[:,0]
+        y_init = elnodes[:,1]
+        p1, =plt.plot(x_init,y_init,'.b-')
+        # deformed
+        x_curr = elnodes[:,0] + r*eldofs[0::NDOF_NODE].reshape(len(elnodes))
+        y_curr = elnodes[:,1] + r*eldofs[1::NDOF_NODE].reshape(len(elnodes))
+        p2, =plt.plot(x_curr, y_curr, '.r-')
+p1.set_label('undeformed')
+p2.set_label('deformed(scale=%d)' %r)
 plt.xlabel('x (mm)')
 plt.ylabel('y (mm)')
 plt.legend(loc='best')
-#plt.savefig("initialmesh.png", dpi=250)
-# plot deformed nodes
-x_curr = nodes[:,0] + r*a[0::NDOF_NODE].reshape(len(nodes))
-y_curr = nodes[:,1] + r*a[1::NDOF_NODE].reshape(len(nodes))
-#plt.scatter(x_curr,y_curr,c='r',alpha=0.5,label='deformed')
-plt.plot(x_curr, y_curr, '.r', label='deformed mesh (scale=%d)' %r)
-plt.xlabel('x (mm)')
-plt.ylabel('y (mm)')
-plt.legend(loc='best')
-#plt.savefig("deformedmeshscale100.pdf")
 plt.show()
+#plt.savefig("deformedmeshscale100.png", dpi=250)
+#plt.savefig("deformedmeshscale100.pdf")
+
+# Derive strain & stress for frame elements
+allstrain=[]
+allstress=[]
+for elist in elem_lists:
+    for elem in elist.elems:
+        elnodes = nodes[elem.cnc_node]
+        eldofs  = a[elem.cnc_dof]
+        # element-specific calculations of strain and stress below
+        # max stress occurs at 1 of the 4 corners
+        # left end relative coordinate: 0
+        # right end relative coordinate: 1
+        # top surf relative coordinate: 1/2
+        # bot surf relative coordinate: -1/2
+        points = [[0,-1/2],[0,1/2],[1,-1/2],[1,1/2]]
+        elstress = []
+        elstrain = [] 
+        for point in points:
+            eps, sig = frame2d2elem.strain_stress(elnodes, eldofs, \
+                                            Materials[elem.matID], h, point)
+            elstrain.append(eps.tolist())
+            elstress.append(sig.tolist())
+        allstrain.append(elstrain)
+        allstress.append(elstress)
+        
 
 
+# Make tablular data for nodes
+af = a.reshape(len(nodes),NDOF_NODE)
+af = np.around(af,decimals=4)
+
+tab1 = PrettyTable()
+tab1.field_names=["Nodes", "u (mm)", "v (mm)", "theta (rad) for frame nodes"]
+for n in range(len(nodes)):
+    tab1.add_row([n+1, af[n,0], af[n,1], af[n,2]])
+
+print(tab1)
+#with open('tab1.txt','w') as tab1txt:
+#    tab1txt.write(str(tab1))
+
+# Make tabular data for elements
+tab2 = PrettyTable()
+tab2.field_names=["Elements", "Max. absolute axial stress (MPa)"]
+for e, elstress in enumerate(allstress):
+    elstress = sum(elstress, [])
+    maxabsstress = abs(max(elstress, key=abs))
+    tab2.add_row([e+1, round(maxabsstress,3)])
+
+print(tab2)
+#with open('tab2.txt','w') as tab2txt:
+#    tab2txt.write(str(tab2))

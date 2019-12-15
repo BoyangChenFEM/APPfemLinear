@@ -79,7 +79,7 @@ kernel_program(inputfile, dimData, Materials, dict_nset_data)
 vtkoutput(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE)
 
 #------------------------------------------------------------------------------
-# simple plotting within Python console for fast visualization
+# simple plotting within Python console for fast visualization of nodes
 #------------------------------------------------------------------------------
 r=100 # scaling factor for deformed plot
 #plt.figure(figsize=[6.4,9.6])
