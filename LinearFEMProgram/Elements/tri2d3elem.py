@@ -53,8 +53,55 @@ class tri2d3elem:
         dload.coord_system : the coordinate system of the function & its inputs
         dload.order: order of the function, to decide on the num. of igpoints
         """
+        # initialize fext
         fext = np.zeros([6,1])
-            
+        
+        # a list defining the local nodal connectivity of edges
+        edges = [[0,1],[1,2],[2,0]]
+        edges_dof = [[0,1,2,3],[2,3,4,5],[4,5,0,1]]
+        
+        if dload.order == 0:
+            allxi = [0]
+            allwt = [2]
+        else:
+            # 2-point Gauss scheme integrates up to 3rd order polynomial
+            # shape function along edge is order 1, so dload function can be up to 
+            # 2nd-order        
+            allxi = [-1.0/np.sqrt(3), 1.0/np.sqrt(3)]
+            allwt = [1.0, 1.0]
+        
+        if dload.order > 2:
+            print('WARNING: the Gauss quadrature scheme in tri2d3elem may not\
+                  be sufficient for this dload!')   
+        
+        for edge, edge_dof in zip(edges, edges_dof):
+            for xi, wt in zip(allxi, allwt):
+                # get the shape function values at xi in natural space 
+                # same for all three edges
+                # NOTE: shape functions of the tri2d3elem localized along the 
+                # edge are nothing but linear truss shape functions.
+                N1 = (1-xi)/2
+                N2 = (1+xi)/2
+                # use shape function to obtain gauss point coords in physical 
+                # space along this edge: interpolate between end nodes of edge
+                xgauss = N1*nodes[edge[0]] + N2*nodes[edge[1]]
+                # evaluate the dload vector at the gauss point in physical space
+                if dload.coord_system == 'global':
+                    t = dload.expression(xgauss)
+                else:
+                    print('WARNING: dload in local coords is not yet supported \
+                          in tri2d3elem!')
+                # calculate the length of the edge under loading
+                L = la.norm(nodes[edge[1]] - nodes[edge[0]])
+                # calculate the force vector contribution of this gauss point
+                # = jac * N^T * t
+                ft = 0.5*L*np.array([[N1*t[0]],\
+                                     [N1*t[1]],\
+                                     [N2*t[0]],\
+                                     [N2*t[1]]])
+                # add its contribution to fext
+                fext[edge_dof] += wt*ft
+        
         return fext
 
     def update_igpoints(self, nodes, Material, a):

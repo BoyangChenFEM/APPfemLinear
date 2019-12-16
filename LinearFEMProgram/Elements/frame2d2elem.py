@@ -63,11 +63,56 @@ class frame2d2elem:
         dload : the distributed load data as object dload_data
         """
         fext = np.zeros([6,1])
-        if dload.coord_system == 'local' and dload.order == 0:
-            fext = fext_dload_uniform(nodes, dload.expression())
-        else:
-            print('WARNING: global or non-uniformly distributed load on frames\
-                  is not yet implemented.')
+        
+#        # 3-point Gauss scheme integrates up to 5th order polynomial
+#        # shape function along frame is order 3, so dload function can be up to 
+#        # 2nd-order        
+#        allxi = [-np.sqrt(0.6), 0, np.sqrt(0.6)]
+#        allwt = [5.0/9.0, 8.0/9.0, 5.0/9.0]
+#        if dload.order > 2:
+#            print('WARNING: the Gauss quadrature scheme in frame2d2elem may not\
+#                  be sufficient for this dload!')
+#        
+#        for xi, wt in zip(allxi, allwt):
+#            # get the truss shape function values at xi in natural space 
+#            N1 = (1-xi)/2
+#            N2 = (1+xi)/2
+#            # use truss shape function to obtain gauss point coords in physical 
+#            # space along this frame: interpolate between end nodes of frame
+#            xgauss = N1*nodes[0] + N2*nodes[1]
+#            # evaluate the dload vector at the gauss point in physical space
+#            if dload.coord_system == 'global':
+#                q = dload.expression(xgauss)
+#                # TO BE CONTINUED
+#                
+#            elif dload.coord_system == 'local':
+#                # calculate the transformation matrix
+#                T = T_matrix(nodes[0], nodes[1])
+#                # transform gauss point from global coords to local
+#                xgauss = T.T@xgauss
+#                # pass local gauss point coords to load function expression
+#                q = dload.expression(xgauss)
+#                # TO BE CONTINUED
+#                
+#            else:
+#                print('WARNING: dload coord system is not supported \
+#                      in frame2d2elem!')
+##            # calculate the length of the edge under loading
+##            L = la.norm(nodes[edge[1]] - nodes[edge[0]])
+##            # calculate the force vector contribution of this gauss point
+##            # = jac * N^T * t
+##            ft = 0.5*L*np.array([[N1*t[0]],\
+##                                 [N1*t[1]],\
+##                                 [N2*t[0]],\
+##                                 [N2*t[1]]])
+#            # add its contribution to fext
+#            fext += wt*ft
+        
+#        if dload.coord_system == 'local' and dload.order == 0:
+#            fext = fext_dload_uniform(nodes, dload.expression())
+#        else:
+#            print('WARNING: global or non-uniformly distributed load on frames\
+#                  is not yet implemented.')
         return fext
 
 
