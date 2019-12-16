@@ -29,7 +29,7 @@ from prettytable import PrettyTable
 
 
 # set input file name
-jobname = 'FrameTruss'
+jobname = 'Beam1'
 inputfile = jobname+'.inp'
 
 # Define dimensional parameters
@@ -47,16 +47,14 @@ A_frame = b*h    # mm^2
 I       = b*h**3/12 # mm^4
 
 # define the list of materials/sections
-Materials = [linear_elastic.truss(E, A_truss), linear_elastic.frame2D(E, A_frame, I)]
+Materials = [linear_elastic.frame2D(E, A_frame, I)]
 #------------------------------------------------------------------------------
 # define the interpreter connecting elset names to Materials list index 
 #------------------------------------------------------------------------------
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # !!! ADD/MODIFY THE SET NAMES BELOW TO BE CONSISTENT WITH INPUT FILE !!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# Elements in the elset named 'TrussElems' will be attributed with Materials[0]
-# Elements in the elset named 'FrameElems' will be attributed with Materials[1]
-dict_elset_matID = {'TrussElems':0, 'FrameElems':1}
+# dict_elset_matID = {}
 
 # Define the concentrated loads and bcds
 P = -5000. # N
@@ -66,49 +64,22 @@ P = -5000. # N
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # !!! ADD/MODIFY THE SET NAMES BELOW TO BE CONSISTENT WITH INPUT FILE !!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# Nset FrameBL & FrameTR: fully-constrained
-# Nset TrussbR: pinned
-# Nset LoadPoint: loaded with concentrated force along Y with value P
 dict_nset_data = {\
-'FrameBL'   : nset_data(settype='bcd', nodalDofs=list(range(NDOF_NODE)), dofValues=[0]*NDOF_NODE),\
-'FrameTR'   : nset_data(settype='bcd', nodalDofs=list(range(NDOF_NODE)), dofValues=[0]*NDOF_NODE),\
-'TrussBR'   : nset_data(settype='bcd', nodalDofs=[0, 1], dofValues=[0, 0]),\
-'LoadPoint' : nset_data(settype='cload', nodalDofs=[1], dofValues=[P]) }
+'Left'   : nset_data(settype='bcd', nodalDofs=[0, 1], dofValues=[0, 0]),\
+'Right'  : nset_data(settype='bcd', nodalDofs=[1], dofValues=[0]) }
 
 # Define the distributed loads (user-defined)
 # for this problem, it is defined in frame's local coordinates, uniformly
 # distributed.
-def func_dload_loc(xloc):
+def func_uniform(xloc):
     # define local x component of the applied traction function
     tx = 0 # no axial loading
     # define local y component of the applied traction function
     ty = -1 # N/mm # uniform vertical loading
     return [tx, ty]
-
-# the following function defined on global x-y coords (for both inputs and outputs)
-# produces the same result
-def func_dload_glb(xg):
-    L = 2000.0
-    H = 1500.0
-    refP = [839.913107, 725.946989] # top_right point coords from the input file
-    tol = 1.e-1 # tolerance for zero, 0.1 mm
-    costheta = L/np.sqrt(L**2+H**2)
-    sintheta = H/np.sqrt(L**2+H**2)
-    q0 = 1
-    tx = 0
-    ty = 0
-    # apply traction on the line
-    if abs((xg[1]-refP[1])*L - (xg[0]-refP[0])*H) < tol:
-        # define x component of the applied traction function
-        tx = q0*sintheta
-        # define y component of the applied traction function
-        ty = -q0*costheta    
-    return [tx, ty]
-
 # 'local' indicates that tx and ty are along local frame axis 
 # order=0 indicates that the loading is constant
-#dload_functions = [dload_function(expression=func_dload_loc, coord_system='local', order=0)]
-dload_functions = [dload_function(expression=func_dload_glb, coord_system='global', order=0)]
+dload_functions = [dload_function(expression=func_uniform, coord_system='local', order=0)]
 
 #------------------------------------------------------------------------------
 # define the interpreter connecting elset names to dload functions above 
@@ -118,7 +89,7 @@ dload_functions = [dload_function(expression=func_dload_glb, coord_system='globa
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # all elements in the elset named 'q_elems' will be subjected to the distributed
 # loading defined in dload_functions[0]
-dict_elset_dload = {'q_elems': dload_functions[0]}
+dict_elset_dload = {'AllElems': dload_functions[0]}
 
 
 ###############################################################################
@@ -127,7 +98,7 @@ dict_elset_dload = {'q_elems': dload_functions[0]}
 ###############################################################################
 [InputPartsData, nodes, elem_lists, f, a, RF] = \
 kernel_program(inputfile, dimData, Materials, dict_nset_data, \
-               dict_elset_matID, dict_elset_dload)
+               dict_elset_dload=dict_elset_dload)
 
 
 
