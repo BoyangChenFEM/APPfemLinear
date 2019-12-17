@@ -29,7 +29,7 @@ from prettytable import PrettyTable
 
 
 # set input file name
-jobname = 'FrameTruss'
+jobname = 'SlantedFrame1'
 inputfile = jobname+'.inp'
 
 # Define dimensional parameters
@@ -42,47 +42,47 @@ dimData = dimension_data(NDIM, NDOF_NODE, ELEM_TYPES)
 E       = 10000.  # Young's modulus, MPa
 b       = 100    # mm
 h       = 100    # mm
-A_truss = 1000   # mm^2
 A_frame = b*h    # mm^2
 I       = b*h**3/12 # mm^4
 
 # define the list of materials/sections
-Materials = [linear_elastic.truss(E, A_truss), linear_elastic.frame2D(E, A_frame, I)]
+Materials = [linear_elastic.frame2D(E, A_frame, I)]
 #------------------------------------------------------------------------------
 # define the interpreter connecting elset names to Materials list index 
 #------------------------------------------------------------------------------
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # !!! ADD/MODIFY THE SET NAMES BELOW TO BE CONSISTENT WITH INPUT FILE !!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# Elements in the elset named 'TrussElems' will be attributed with Materials[0]
-# Elements in the elset named 'FrameElems' will be attributed with Materials[1]
-dict_elset_matID = {'TrussElems':0, 'FrameElems':1}
+# dict_elset_matID = {}
 
-# Define the concentrated loads and bcds
-P = -5000. # N
 #------------------------------------------------------------------------------
 # Define interpretations of nset names to form lists of bcds and loads
 #------------------------------------------------------------------------------
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # !!! ADD/MODIFY THE SET NAMES BELOW TO BE CONSISTENT WITH INPUT FILE !!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# Nset FrameBL & FrameTR: fully-constrained
-# Nset TrussbR: pinned
-# Nset LoadPoint: loaded with concentrated force along Y with value P
 dict_nset_data = {\
-'FrameBL'   : nset_data(settype='bcd', nodalDofs=list(range(NDOF_NODE)), dofValues=[0]*NDOF_NODE),\
-'FrameTR'   : nset_data(settype='bcd', nodalDofs=list(range(NDOF_NODE)), dofValues=[0]*NDOF_NODE),\
-'TrussBR'   : nset_data(settype='bcd', nodalDofs=[0, 1], dofValues=[0, 0]),\
-'LoadPoint' : nset_data(settype='cload', nodalDofs=[1], dofValues=[P]) }
+'Left'   : nset_data(settype='bcd', nodalDofs=[0, 1, 2], dofValues=[0, 0, 0]),\
+'Right'  : nset_data(settype='bcd', nodalDofs=[0, 1, 2], dofValues=[0, 0, 0]) }
 
 # Define the distributed loads (user-defined)
-# for this problem, it is defined in frame's local coordinates, uniformly
-# distributed.
-def func_dload_loc(xloc):
+# for this problem, it is defined in frame's local coordinates, linearly-varied,
+# orineted along the -Y(global) direction.
+def func_linear_loc(xloc):
+    # define geometrical parameters to define the local frame orientation 
+    L = 2000.0
+    H = 1500.0
+    S = 2500.0
+    costheta = L/S
+    sintheta = H/S
+    # ref. point local coords, where the curve parameter s = 0 (start of line)
+    refP = [0, 0]
+    # max. amplitude of the distribution along the frame (force per frame length)
+    q0 = 1.6 #N/mm    
     # define local x component of the applied traction function
-    tx = 0 # no axial loading
+    tx = -q0*(xloc[0]-refP[0])/S*sintheta
     # define local y component of the applied traction function
-    ty = -1 # N/mm # uniform vertical loading
+    ty = -q0*(xloc[0]-refP[0])/S*costheta
     return [tx, ty]
 
 # the following function defined on global x-y coords (for both inputs and outputs)
@@ -90,30 +90,33 @@ def func_dload_loc(xloc):
 # function must be defined on the boundary itself, not along any projection of it;
 # if it is the latter, then it must be transformed to a distribution along the 
 # boundary while taking into account of the change of domain, i.e., the jacobian.
-def func_dload_glb(xg):
+def func_linear_glb(xg):
+    # define geometrical parameters to define the local frame orientation 
     L = 2000.0
     H = 1500.0
-    refP = [839.913107, 725.946989] # top_right point coords from the input file
-    tol = 1.e-1 # tolerance for zero, 0.1 mm
-    costheta = L/np.sqrt(L**2+H**2)
-    sintheta = H/np.sqrt(L**2+H**2)
-    q0 = 1
+    # ref. point global coords, where the curve parameter s = 0 (start of line)
+    refP = [0, 0]
+    # max. amplitude of the distribution along the frame (force per frame length)
+    q0 = 1.6 #N/mm    
+    # tolerance for zero, 0.1 mm
+    tol = 1.e-1 
+    # initialize tx and ty
     tx = 0
     ty = 0
     # apply traction on the line
     if abs((xg[1]-refP[1])*L - (xg[0]-refP[0])*H) < tol:
         # define x component of the applied traction function
-        tx = q0*sintheta
+        tx = 0
         # define y component of the applied traction function
-        ty = -q0*costheta    
+        ty = -q0*xg[0]/L
     return [tx, ty]
 
 # 'local' indicates that tx and ty are along local frame axis and dload expression
 # takes in point coordinates in local coordinate system
 # order=0 indicates that the loading is constant
-#dload_functions = [dload_function(expression=func_dload_loc, coord_system='local', order=0)]
-dload_functions = [dload_function(expression=func_dload_glb, coord_system='global', order=0)]
-
+# order=1 indicates that the loading is linearly-varied
+#dload_functions = [dload_function(expression=func_linear_loc, coord_system='local', order=1)]
+dload_functions = [dload_function(expression=func_linear_glb, coord_system='global', order=1)]
 #------------------------------------------------------------------------------
 # define the interpreter connecting elset names to dload functions above 
 #------------------------------------------------------------------------------
@@ -131,7 +134,7 @@ dict_elset_dload = {'q_elems': dload_functions[0]}
 ###############################################################################
 [InputPartsData, nodes, elem_lists, f, a, RF] = \
 kernel_program(inputfile, dimData, Materials, dict_nset_data, \
-               dict_elset_matID, dict_elset_dload)
+               dict_elset_dload=dict_elset_dload)
 
 
 
@@ -143,6 +146,10 @@ kernel_program(inputfile, dimData, Materials, dict_nset_data, \
 # Default VTK output of data for visualization using Paraview
 #------------------------------------------------------------------------------
 vtkoutput(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE)
+
+# simple printing of f and RF
+print(f)
+print(RF)
 
 #------------------------------------------------------------------------------
 # simple plotting within Python console for visualization of mesh
