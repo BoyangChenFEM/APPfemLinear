@@ -56,7 +56,7 @@ Materials = [linear_elastic.truss(E, A_truss), linear_elastic.frame2D(E, A_frame
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # Elements in the elset named 'TrussElems' will be attributed with Materials[0]
 # Elements in the elset named 'FrameElems' will be attributed with Materials[1]
-dict_elset_matID = {'TrussElems':0, 'FrameElems':1}
+dict_elset_matID = {'TrussElems':1, 'FrameElems':1}
 
 # Define the concentrated loads and bcds
 P = -5000. # N
@@ -147,7 +147,7 @@ vtkoutput(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE)
 #------------------------------------------------------------------------------
 # simple plotting within Python console for visualization of mesh
 #------------------------------------------------------------------------------
-r=100 # scaling factor for deformed plot
+r=1000 # scaling factor for deformed plot
 #plt.figure(figsize=[6.4,9.6])
 plt.figure()
 for elist in elem_lists:

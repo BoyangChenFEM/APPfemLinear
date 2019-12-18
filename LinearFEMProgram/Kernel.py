@@ -150,7 +150,11 @@ def kernel_program(inputfile, dimData, Materials, dict_nset_data, \
     # form the list of all the elems for assembly
     elems = []
     for elist in elem_lists:
+        # verify material type before assembly
+        for elem in elist.elems:
+            elem.verify_material(Materials[elem.matID])
         elems.extend(elist.elems)
+
     # call assembler
     [K, f] = assembler(nodes, elems, dimData.NDOF_NODE, Materials, list_dload_data)
     

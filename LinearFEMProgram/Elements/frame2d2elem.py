@@ -20,6 +20,13 @@ class frame2d2elem:
         self.matID     = matID
         
     @staticmethod
+    def verify_material(Material):
+        """ check if the material type is correct """
+        if not isinstance(Material, linear_elastic.frame2D):
+            raise TypeError('Material type in frame2d2elem must be \
+                            linear_elastic.frame2D')
+        
+    @staticmethod
     def stiff_matrix(nodes, Material):
         """
         A function to calculate the stiffness matrix of the element 
@@ -28,31 +35,19 @@ class frame2d2elem:
         Material : provides material stiffness matrix/constants; it can be both
         truss and frame in type
         """
+            
         # calculate the length of the bar element
         L = la.norm(nodes[1] - nodes[0])
         # calculate the transformation matrix
         T = T_matrix(nodes[0], nodes[1])
         
-        # define the stiffness matrix based on material type
-        # here, both truss and frame2D materials are supported
-        
-        # first, calculate the truss part in any case
+        # define the stiffness matrix   
+        # first, calculate the truss part
         K_t = K_truss(Material.E, Material.A, L)
-        
-        # form K based on material type
-        if isinstance(Material, linear_elastic.truss):
-            # add dummy stiffness 1 to the diagonal terms on theta1 & theta2
-            # to avoid singular matrix
-            K_t[2,2] = 1
-            K_t[5,5] = 1
-            # rotate the total local stiffness matrix to x-y coordinates
-            K = T@K_t@T.T
-        elif isinstance(Material, linear_elastic.frame2D):
-            K_b = K_beam(Material.E, Material.I, L)
-            # rotate the total local stiffness matrix to x-y coordinates
-            K = T@(K_t+K_b)@T.T
-        else:
-            print('WARNING: unsupported material in frame2delem')
+        # next, calculate the beam part
+        K_b = K_beam(Material.E, Material.I, L)
+        # rotate the total local stiffness matrix to x-y coordinates
+        K = T@(K_t+K_b)@T.T
             
         return K
     
@@ -242,16 +237,9 @@ def strain_stress(nodes, a_glb, Material, h, point):
     y = point[1]*h
     # axial B matrix, using the gradient of the axial shape function 
     Ba = np.array([-1/L, 0, 0, 1/L, 0, 0])
-    
-    if isinstance(Material, linear_elastic.truss):
-        epsilon = Ba@a
-    elif isinstance(Material, linear_elastic.frame2D):
-        # Bending B matrix: Bb = d^2 N_bending / dx^2
-        Bb = np.array([0, 12*x/L**3-6/L**2, 6*x/L**2-4/L, 0, 6/L**2-12*x/L**3, 6*x/L**2-2/L])
-        # Axial strain = Ba*a, Bending strain = - y*Bb*a
-        epsilon = Ba@a - y*Bb@a
-    else:
-        print('WARNING: unsupported material in frame2delem')
-    
+    # Bending B matrix: Bb = d^2 N_bending / dx^2
+    Bb = np.array([0, 12*x/L**3-6/L**2, 6*x/L**2-4/L, 0, 6/L**2-12*x/L**3, 6*x/L**2-2/L])
+    # Axial strain = Ba*a, Bending strain = - y*Bb*a
+    epsilon = Ba@a - y*Bb@a    
     sigma   = Material.E*epsilon
     return [epsilon,sigma]

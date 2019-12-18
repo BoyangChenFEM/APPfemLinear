@@ -7,6 +7,7 @@ Class and functions for a 2D 3-node linear triangular element
 import numpy as np
 import numpy.linalg as la
 from .integration_point import igpoint
+from ..Materials import linear_elastic
         
 
 class tri2d3elem:
@@ -21,6 +22,14 @@ class tri2d3elem:
         self.cnc_dof   = cnc_dof
         self.matID     = matID
         self.igpoints  = [igpoint(xi=[1/3, 1/3])]
+        
+    @staticmethod
+    def verify_material(Material):
+        """ check if the material type is correct 
+        !!! UPDATE THIS TUPLE IF NEW MATERIALS ARE DEVELOPED"""
+        if not isinstance(Material, (linear_elastic.isotropic2D,)):
+            raise TypeError('Material type in truss2d2elem must be \
+                            linear_elastic.isotropic2D')
         
     @staticmethod
     def stiff_matrix(nodes, Material):

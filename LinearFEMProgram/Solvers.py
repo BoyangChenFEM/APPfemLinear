@@ -36,7 +36,6 @@ def assembler(nodes, elems, NDOF_NODE, Materials, list_dload_data=[]):
         K[np.ix_(elem.cnc_dof[:],elem.cnc_dof[:])] += K_e[:,:]
     
     # get f_ext due to distributed loading
-    # TO BE DEFINED (PLACE HOLDER ONLY)
     if list_dload_data:
         for dload in list_dload_data:
             for ie in dload.elset:
@@ -64,6 +63,12 @@ def direct_solver(K, f, bcd_dofs, bcd_values, cload_dofs, cload_values):
 
     # Apply the concentrated loads on the force vector
     f[cload_dofs,0] += cload_values
+    
+    # identify zero rows in K and put diagonal to 1 to avoid singularity
+    #zeroRows = np.where(~K.any(axis=1))[0]
+    #K[zeroRows, zeroRows] = 1 # set zero row&col diagonal term to 1    
+    zeroRows = np.diff(K.tocsr().indptr)==0
+    K[zeroRows, zeroRows] = 1 # set zero row&col diagonal term to 1
     
     # Solve for a:
     #a[free_dofs] = la.solve(K[np.ix_(free_dofs,free_dofs)], f[free_dofs])
@@ -105,9 +110,16 @@ def direct_solver_edu(K, f, bcd_dofs, bcd_values, cload_dofs, cload_values):
     # Apply the concentrated loads on the force vector
     f[cload_dofs[:],0] += cload_values[:]
     
-    # set diagonal term of K wrt bcd node to a dummy stiffness to avoid singularity
-    for i in bcd_dofs:
-       K[i,i] = 1 # dummy non-zero stiffness 
+#    # set diagonal term of K wrt bcd node to a dummy stiffness to avoid singularity
+#    for i in bcd_dofs:
+#       K[i,i] = 1 # dummy non-zero stiffness 
+
+    # identify zero rows in K and put diagonal to 1 to avoid singularity
+    # this operation makes the above-commented section redundant
+    #zeroRows = np.where(~K.any(axis=1))[0]
+    #K[zeroRows, zeroRows] = 1 # set zero row&col diagonal term to 1    
+    zeroRows = np.diff(K.tocsr().indptr)==0
+    K[zeroRows, zeroRows] = 1 # set zero row&col diagonal term to 1
     
     # Solve for a:
     #a = la.solve(K,f)
