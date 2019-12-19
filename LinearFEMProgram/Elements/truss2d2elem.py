@@ -57,7 +57,7 @@ class truss2d2elem:
         nodes : global x-y coordinates of the nodes of the element
         dload : the distributed load data as object dload_data
         """
-        fext = np.zeros([6,1])
+        fext = np.zeros([4,1])
 
         # calculate the length of the truss element
         L = la.norm(nodes[1] - nodes[0])
