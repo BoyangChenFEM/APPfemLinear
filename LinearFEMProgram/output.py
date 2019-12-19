@@ -39,7 +39,7 @@ def vtkoutput1part(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE):
         elnumlist = []
         for elist in elem_lists:
             nelem += len(elist.elems)
-            if elist.eltype in param.tuple_frame2d2_eltypes:
+            if elist.eltype in param.tuple_truss2d2_eltypes+param.tuple_frame2d2_eltypes:
                 # frame2d2 elem has 3 data: elem index and 2 node indices
                 nsize += 3*len(elist.elems)
                 # frame2d2 elem has eltype number 3 in vtk format (see below)
@@ -173,7 +173,7 @@ def vtkoutput1part_igpoints(jobname, elem_lists):
                     strainlist.append(elem.igpoints[0].strain)
                     stresslist.append(elem.igpoints[0].stress)      
             else:
-                print('Unsupported element type in vtkoutput: '+elist.eltype)
+                print('Unsupported element type in vtkoutput_igpoints: '+elist.eltype)
         
         # write the positions of the igpoints
         output.write('POINTS '+str(nsize)+' double\n')

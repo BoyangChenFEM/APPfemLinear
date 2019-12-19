@@ -21,8 +21,9 @@ from LinearFEMProgram.output import vtkoutput1part as vtkoutput
 # import the right material module
 from LinearFEMProgram.Materials import linear_elastic
 # import the element stress-strain function for postprocessing
-from LinearFEMProgram.Elements import frame2d2elem
+from LinearFEMProgram.Elements import truss2d2elem, frame2d2elem
 # import modules for user-defined fast visualization in Python console
+import LinearFEMProgram.Parameters as param
 import matplotlib.pyplot as plt
 import numpy as np
 from prettytable import PrettyTable
@@ -34,8 +35,8 @@ inputfile = jobname+'.inp'
 
 # Define dimensional parameters
 NDIM = 2 # no. of dimensions
-NDOF_NODE = 3 # no. of dofs per node
-ELEM_TYPES = ('B23') # expected element types in the inp file
+NDOF_NODE = 3 # max. no. of dofs per node
+ELEM_TYPES = ('T2D2','B23') # expected element types in the inp file
 dimData = dimension_data(NDIM, NDOF_NODE, ELEM_TYPES)
 
 # Define material & section parameters
@@ -56,7 +57,7 @@ Materials = [linear_elastic.truss(E, A_truss), linear_elastic.frame2D(E, A_frame
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # Elements in the elset named 'TrussElems' will be attributed with Materials[0]
 # Elements in the elset named 'FrameElems' will be attributed with Materials[1]
-dict_elset_matID = {'TrussElems':1, 'FrameElems':1}
+dict_elset_matID = {'TrussElems':0, 'FrameElems':1}
 
 # Define the concentrated loads and bcds
 P = -5000. # N
@@ -70,9 +71,9 @@ P = -5000. # N
 # Nset TrussbR: pinned
 # Nset LoadPoint: loaded with concentrated force along Y with value P
 dict_nset_data = {\
-'FrameBL'   : nset_data(settype='bcd', nodalDofs=list(range(NDOF_NODE)), dofValues=[0]*NDOF_NODE),\
-'FrameTR'   : nset_data(settype='bcd', nodalDofs=list(range(NDOF_NODE)), dofValues=[0]*NDOF_NODE),\
-'TrussBR'   : nset_data(settype='bcd', nodalDofs=[0, 1], dofValues=[0, 0]),\
+'FrameBL'   : nset_data(settype='bcd', nodalDofs=[0,1,2], dofValues=[0,0,0]),\
+'FrameTR'   : nset_data(settype='bcd', nodalDofs=[0,1,2], dofValues=[0,0,0]),\
+'TrussBR'   : nset_data(settype='bcd', nodalDofs=[0,1], dofValues=[0,0]),\
 'LoadPoint' : nset_data(settype='cload', nodalDofs=[1], dofValues=[P]) }
 
 # Define the distributed loads (user-defined)
@@ -91,10 +92,15 @@ def func_dload_loc(xloc):
 # if it is the latter, then it must be transformed to a distribution along the 
 # boundary while taking into account of the change of domain, i.e., the jacobian.
 def func_dload_glb(xg):
+    # set geometrical parameters
     L = 2000.0
     H = 1500.0
-    refP = [839.913107, 725.946989] # top_right point coords from the input file
-    tol = 1.e-1 # tolerance for zero, 0.1 mm
+    # set ref point as the top_right point coords from the input file
+    refP = [839.913107, 725.946989]
+    # set tolerance for zero = 0.1 mm; it cannot be too small because it may 
+    # exclude the gauss point, it just needs to be smaller than the distance 
+    # between two gauss points and the distance between two elements
+    tol = 1.e-1
     costheta = L/np.sqrt(L**2+H**2)
     sintheta = H/np.sqrt(L**2+H**2)
     q0 = 1
@@ -147,10 +153,12 @@ vtkoutput(jobname, nodes, elem_lists, f, a, RF, NDIM, NDOF_NODE)
 #------------------------------------------------------------------------------
 # simple plotting within Python console for visualization of mesh
 #------------------------------------------------------------------------------
-r=1000 # scaling factor for deformed plot
+r=100 # scaling factor for deformed plot
 #plt.figure(figsize=[6.4,9.6])
 plt.figure()
 for elist in elem_lists:
+    activeDofs = param.dict_eltype_activeDofs.get(elist.eltype)
+    ndof_node  = len(activeDofs)
     for elem in elist.elems:
         elnodes = nodes[elem.cnc_node]
         eldofs  = a[elem.cnc_dof]
@@ -159,8 +167,8 @@ for elist in elem_lists:
         y_init = elnodes[:,1]
         p1, =plt.plot(x_init,y_init,'.b-')
         # deformed
-        x_curr = elnodes[:,0] + r*eldofs[0::NDOF_NODE].reshape(len(elnodes))
-        y_curr = elnodes[:,1] + r*eldofs[1::NDOF_NODE].reshape(len(elnodes))
+        x_curr = elnodes[:,0] + r*eldofs[0::ndof_node].reshape(len(elnodes))
+        y_curr = elnodes[:,1] + r*eldofs[1::ndof_node].reshape(len(elnodes))
         p2, =plt.plot(x_curr, y_curr, '.r-')
 p1.set_label('undeformed')
 p2.set_label('deformed(scale=%d)' %r)
@@ -175,25 +183,35 @@ plt.show()
 allstrain=[]
 allstress=[]
 for elist in elem_lists:
-    for elem in elist.elems:
-        elnodes = nodes[elem.cnc_node]
-        eldofs  = a[elem.cnc_dof]
-        # element-specific calculations of strain and stress below
-        # max stress occurs at 1 of the 4 corners
-        # left end relative coordinate: 0
-        # right end relative coordinate: 1
-        # top surf relative coordinate: 1/2
-        # bot surf relative coordinate: -1/2
-        points = [[0,-1/2],[0,1/2],[1,-1/2],[1,1/2]]
-        elstress = []
-        elstrain = [] 
-        for point in points:
-            eps, sig = frame2d2elem.strain_stress(elnodes, eldofs, \
-                                            Materials[elem.matID], h, point)
-            elstrain.append(eps.tolist())
-            elstress.append(sig.tolist())
-        allstrain.append(elstrain)
-        allstress.append(elstress)
+    if elist.eltype in param.tuple_truss2d2_eltypes:
+        for elem in elist.elems:
+            elnodes = nodes[elem.cnc_node]
+            eldofs  = a[elem.cnc_dof].reshape(len(elnodes),2)
+            eps, sig = truss2d2elem.strain_stress(elnodes[0], elnodes[1], \
+                                eldofs[0], eldofs[1], Materials[elem.matID].E)
+            allstrain.append([[eps]])
+            allstress.append([[sig]])
+            
+    elif elist.eltype in param.tuple_frame2d2_eltypes:      
+        for elem in elist.elems:
+            elnodes = nodes[elem.cnc_node]
+            eldofs  = a[elem.cnc_dof]
+            # element-specific calculations of strain and stress below
+            # max stress occurs at 1 of the 4 corners
+            # left end relative coordinate: 0
+            # right end relative coordinate: 1
+            # top surf relative coordinate: 1/2
+            # bot surf relative coordinate: -1/2
+            points = [[0,-1/2],[0,1/2],[1,-1/2],[1,1/2]]
+            elstress = []
+            elstrain = [] 
+            for point in points:
+                eps, sig = frame2d2elem.strain_stress(elnodes, eldofs, \
+                                                Materials[elem.matID], h, point)
+                elstrain.append(eps.tolist())
+                elstress.append(sig.tolist())
+            allstrain.append(elstrain)
+            allstress.append(elstress)
         
 
 

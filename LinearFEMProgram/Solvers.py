@@ -111,8 +111,7 @@ def direct_solver_edu(K, f, bcd_dofs, bcd_values, cload_dofs, cload_values):
     f[cload_dofs[:],0] += cload_values[:]
     
 #    # set diagonal term of K wrt bcd node to a dummy stiffness to avoid singularity
-#    for i in bcd_dofs:
-#       K[i,i] = 1 # dummy non-zero stiffness 
+#    K[bcd_dofs, bcd_dofs] = 1
 
     # identify zero rows in K and put diagonal to 1 to avoid singularity
     # this operation makes the above-commented section redundant

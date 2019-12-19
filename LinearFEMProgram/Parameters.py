@@ -7,10 +7,13 @@ A module to store problem-independent parameters of the programme
 # no. of decimal places for output purposes
 num_decimal_for_output = 6
 
-# A dictionary to relate Abaqus element type and its no. of dofs per node
-dict_eltype_ndofnode = {'T2D2':2, 'B23':3, \
-                        'CPS3':2, 'CPE3':2, \
-        'CPS4':2, 'CPS4R':2, 'CPE4':2, 'CPE4R':2}
+# A dictionary to relate 2D dof index with its physical meaning
+dict_dofIDmeaning_2D = {0:'Ux', 1:'Uy', 2:'theta (rotation around z-axis)'}
+
+# A dictionary to relate Abaqus element type and its active dof IDs per node;
+dict_eltype_activeDofs = {'T2D2':[0,1], 'B23':[0,1,2], \
+                        'CPS3':[0,1], 'CPE3':[0,1], \
+        'CPS4':[0,1], 'CPS4R':[0,1], 'CPE4':[0,1], 'CPE4R':[0,1]}
 
 # A dictionary to relate Abaqus element type and its no. of dimensions
 dict_eltype_ndim = {'T2D2':2, 'B23':2, \

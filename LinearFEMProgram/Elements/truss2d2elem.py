@@ -35,8 +35,6 @@ class truss2d2elem:
             - E : Young's modulus
             - A : cross-sectional area"""
         # extract materials constant
-        if not isinstance(Material, linear_elastic.truss):
-            print('WARNING: unsupported material type in truss2delem!')
         E = Material.E
         A_cross = Material.A
         # calculate the length of the bar element
@@ -52,6 +50,81 @@ class truss2d2elem:
         # rotate the local stiffness matrix to x-y coordinates
         K_e = T@K_e@T.T
         return K_e
+    
+    @staticmethod
+    def fext_dload(nodes, dload):
+        """
+        nodes : global x-y coordinates of the nodes of the element
+        dload : the distributed load data as object dload_data
+        """
+        fext = np.zeros([6,1])
+
+        # calculate the length of the truss element
+        L = la.norm(nodes[1] - nodes[0])
+        # jacobian from physical to natural space
+        jac = L/2
+        
+        if dload.order == 0:
+            allxi = [0]
+            allwt = [2]
+        else:
+            # 2-point Gauss scheme integrates up to 3rd order polynomial
+            # shape function along truss is order 1, so dload function can be up to 
+            # 2nd-order        
+            allxi = [-1.0/np.sqrt(3), 1.0/np.sqrt(3)]
+            allwt = [1.0, 1.0]
+        
+        if dload.order > 2:
+            print('WARNING: the Gauss quadrature scheme in truss2d2elem may not\
+                  be sufficient for this dload!') 
+            
+        for xi, wt in zip(allxi, allwt):
+            # get the shape function values at xi in natural space
+            N1 = (1-xi)/2
+            N2 = (1+xi)/2
+            # use shape function to obtain gauss point coords in physical 
+            # space between end nodes
+            xg = N1*nodes[0] + N2*nodes[1]
+            # evaluate the dload vector at the gauss point in physical space
+            if dload.coord_system == 'local':
+                # calculate the transformation matrix Q
+                Q = Q_matrix(nodes[0], nodes[1])
+                # transform gauss point vector from global coords to local
+                xl = Q.T@xg
+                # pass local gauss point coords to load function expression
+                # to obtain the traction vector in local coordinates
+                q = dload.expression(xl)
+                # calculate the force vector contribution in global coords
+                T = T_matrix(nodes[0], nodes[1])
+                ft = T@NTq(N1, N2, q)
+            elif dload.coord_system == 'global':
+                q = dload.expression(xg)
+                # calculate the force vector contribution of this gauss point
+                ft = NTq(N1, N2, q)
+            else:
+                print('WARNING: dload coord system is not supported \
+                      in truss2d2elem!')
+            
+            # add its contribution to fext
+            fext += jac*wt*ft
+        
+        return fext
+
+
+
+def Q_matrix(node1, node2):
+    """ A function to calculate the transformation matrix Q for the element.
+    Q transforms a position vector from local to global coords: 
+    r_glb = Q * r_lcl"""
+    # calculate the unit axial vector of the bar element in global coords
+    axial_vect = (node2 - node1)/la.norm(node2 - node1)
+    # get cos theta and sin theta
+    costheta = axial_vect[0]
+    sintheta = axial_vect[1]
+    # fill in the transformation matrix
+    Q = np.array([[costheta, -sintheta],\
+                  [sintheta,  costheta]])
+    return Q
 
 
 def T_matrix(node1, node2):
@@ -69,6 +142,15 @@ def T_matrix(node1, node2):
                   [0,  0,  costheta,  -sintheta],\
                   [0,  0,  sintheta,   costheta]])
     return T
+
+
+def NTq(N1, N2, q):
+    # calculate the force vector contribution N^T * q
+    ft = np.array([[N1*q[0]],\
+                   [N1*q[1]],\
+                   [N2*q[0]],\
+                   [N2*q[1]]])
+    return ft
 
 
 def strain_stress(node1, node2, u1, u2, E):

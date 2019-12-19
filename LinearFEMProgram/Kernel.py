@@ -9,20 +9,15 @@ be defined in the job script, connected to the nodes and elems in the part throu
 the nsets and elsets in the inputfile. The main program then forms the datalists 
 of nodes, elems, bcds, cloads (concentrated loads) and dloads (distributed loads).
 
-The program supports multiple materials. 
-
-The program supports multiple element types, as long as they have the 
-same number of nodal DoFs and their meanings are consistent. For example: 
-- tri3, quad4, tri6 and quad8 are compatible
-- frame2d and truss2d are not compatible; truss must be modelled by frame 
-elements with a truss material section (supported by the frame element)
+The program supports multiple materials, multiple element types and generic 
+distributed loading functions accurate up to 2nd-order taylor expansion.
 
 @author: Boyang CHEN, TU Delft Aerospace, 2019
 """
 import numpy as np
 from . import Parameters as param
 from .Preprocessing import read_abaqus_parts as read_abaqus
-from .Elements import frame2d2elem, tri2d3elem
+from .Elements import truss2d2elem, frame2d2elem, tri2d3elem
 from .Solvers import assembler, direct_solver_edu as solver
 
 ###############################################################################
@@ -185,35 +180,24 @@ def verify_dimensional_parameters(part, dimData):
     """A function to perform sanity checks at the meta level before analysis"""
     
     for elem_group in part.elem_groups:
-        # check if ndim from parts is the same as the user-defined NDIM above
-        if(not dimData.NDIM == param.dict_eltype_ndim.get(elem_group.eltype)):
-            print("WARNING: User-defined no. of dimensions is not compatible\
+        # check if ndim from parts is the same as the user-defined NDIM
+        if not dimData.NDIM == param.dict_eltype_ndim.get(elem_group.eltype):
+            raise ValueError("User-defined no. of dimensions is not compatible\
                   with that in the input file for eltype: "+elem_group.eltype)
-        # check if ndof_node from parts is the same as the user-defined NDOF_NODE above
-        if(not dimData.NDOF_NODE == param.dict_eltype_ndofnode.get(elem_group.eltype)):
-            print("WARNING: User-defined no. of dofs per node is not compatible\
+        # check if ndof_node from parts is <= the user-defined max NDOF_NODE
+        if not dimData.NDOF_NODE >= max(param.dict_eltype_activeDofs.get(elem_group.eltype)):
+            print("WARNING: User-defined max no. of dofs per node is not compatible\
                   with that in the input file for eltype: "+elem_group.eltype)
         # check if the element types in the input file are supported by the programme
-        if(not elem_group.eltype in param.tuple_supported_eltypes):
-            print("WARNING: eltype in the input file is not one of the \
+        if not elem_group.eltype in param.tuple_supported_eltypes:
+            print("WARNING: an eltype in the input file is not one of the \
                   supported element types! This element will not be used in \
                   the analysis: "+elem_group.eltype)
         # check if the element types in the input file are the intended ones of the user
-        if(not elem_group.eltype in dimData.ELEM_TYPES):
+        if not elem_group.eltype in dimData.ELEM_TYPES:
             print("WARNING: an eltype in the input file is not one of the \
                   user-defined/expected element types! This element will not \
                   be used in the analysis: "+elem_group.eltype)
-    
-    def same_ndof_node(elem_groups):
-        """an inner function to check ndof_node for elem_groups; there should be 
-        the same no. of dofs per node for all elem groups in a part"""
-        x = []
-        for elem_group in elem_groups:
-            x.append(param.dict_eltype_ndofnode.get(elem_group.eltype))
-        return x.count(x[0]) == len(x)
-    
-    if(not same_ndof_node(part.elem_groups)):
-        print("WARNING: Nodes in a part should have the same no. of dofs!")
 
 
 
@@ -231,13 +215,15 @@ def form_elem_lists(part, NDOF_NODE, ELEM_TYPES, dict_elset_matID={}):
     in the Materials list"""
     
     # inner function to form the cnc_dof from cnc_node
-    def form_elem_cnc_dof(elem_cnc_node, ndof_node):
+    def form_elem_cnc_dof(elem_cnc_node, ndof_node, activeDofs):
         """ form cnc_dof (dof connectivity) of the element based on 
-        its cnc_node (nodal connectivity) and ndof_node (no. of dofs per node) """
+        its cnc_node (nodal connectivity) and ndof_node (no. of dofs per node) 
+        and the indices of active dofs on a node in this element"""
         elem_cnc_dof = []
         for jnd in elem_cnc_node:
             # Python convension starts from 0 when setting the range below
-            elem_cnc_dof.extend(list(range(jnd*ndof_node, (jnd+1)*ndof_node)))
+            # elem_cnc_dof.extend(list(range(jnd*ndof_node, (jnd+1)*ndof_node)))
+            elem_cnc_dof.extend([jnd*ndof_node+i for i in activeDofs])
         return elem_cnc_dof
     
     # inner function to update the matID of an element in the elem_lists object
@@ -259,22 +245,31 @@ def form_elem_lists(part, NDOF_NODE, ELEM_TYPES, dict_elset_matID={}):
            elem_group.eltype in ELEM_TYPES:
             # initialize the empty list of elems for this eltype
             elems = []
+            # obtain the active dof indices of this element type
+            activeDofs = param.dict_eltype_activeDofs.get(elem_group.eltype)
             # loop over all rows of the nodal connectivity matrix
             # each row is basically the nodal connectivity of an element
             for elem_cnc_node in elem_group.cnc_node:
                 # obtain the element's dof connectivity list
-                elem_cnc_dof = form_elem_cnc_dof(elem_cnc_node, NDOF_NODE)
+                elem_cnc_dof = form_elem_cnc_dof(elem_cnc_node, NDOF_NODE, activeDofs)
+                
                 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 # form this element based on its eltype and using its node and 
                 # dof cnc lists; to be updated with every new element class
                 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                if elem_group.eltype in param.tuple_frame2d2_eltypes:
+                if elem_group.eltype in param.tuple_truss2d2_eltypes:
+                    elems.append(truss2d2elem.truss2d2elem(elem_cnc_node, elem_cnc_dof))
+                    
+                elif elem_group.eltype in param.tuple_frame2d2_eltypes:
                     elems.append(frame2d2elem.frame2d2elem(elem_cnc_node, elem_cnc_dof))
+                    
                 elif elem_group.eltype in param.tuple_tri2d3_eltypes:
                     elems.append(tri2d3elem.tri2d3elem(elem_cnc_node, elem_cnc_dof))
+                    
                 else:
                     print('WARNING: this eltype is not added in elem_lists:'\
                           +elem_group.eltype)
+                    
             # form the elem_list for this eltype and append to the full elem_lists
             elem_lists.append(elem_list(elem_group.eltype, elems))
     

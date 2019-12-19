@@ -68,8 +68,8 @@ class frame2d2elem:
             # 2-point Gauss scheme integrates up to 3rd order polynomial
             # shape function along frame is order 3, so dload function can be up to 
             # 0th-order        
-            allxi = [-1.0/np.sqrt(3), 1.0/np.sqrt(3)]
-            allwt = [1.0, 1.0]
+            allxi = [-1/np.sqrt(3), 1/np.sqrt(3)]
+            allwt = [1, 1]
         else:
             # 3-point Gauss scheme integrates up to 5th order polynomial
             # shape function along frame is order 3, so dload function can be up to 
