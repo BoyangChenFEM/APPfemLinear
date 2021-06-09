@@ -103,7 +103,7 @@ def func_dload_glb(xg):
     tol = 1.e-1
     costheta = L/np.sqrt(L**2+H**2)
     sintheta = H/np.sqrt(L**2+H**2)
-    q0 = 0
+    q0 = 1
     tx = 0
     ty = 0
     # apply traction on the line
@@ -118,8 +118,7 @@ def func_dload_glb(xg):
 # takes in point coordinates in local coordinate system
 # order=0 indicates that the loading is constant
 #dload_functions = [dload_function(expression=func_dload_loc, coord_system='local', order=0)]
-dload_functions = [dload_function(expression=func_dload_glb, coord_system='global', order=0),\
-                   dload_function(expression=func_dload_loc, coord_system='local', order=0)]
+dload_functions = [dload_function(expression=func_dload_glb, coord_system='global', order=0)]
 
 #------------------------------------------------------------------------------
 # define the interpreter connecting elset names to dload functions above 
@@ -129,7 +128,7 @@ dload_functions = [dload_function(expression=func_dload_glb, coord_system='globa
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # all elements in the elset named 'q_elems' will be subjected to the distributed
 # loading defined in dload_functions[0]
-dict_elset_dload = {'FrameElems': dload_functions[0], 'TrussElems': dload_functions[1]}
+dict_elset_dload = {'FrameElems': dload_functions[0]}
 
 
 ###############################################################################
@@ -180,7 +179,7 @@ plt.show()
 #plt.savefig("deformedmeshscale100.png", dpi=250)
 #plt.savefig("deformedmeshscale100.pdf")
 
-# Derive strain & stress for frame elements
+# Derive strain & stress for elements
 allstrain=[]
 allstress=[]
 for elist in elem_lists:

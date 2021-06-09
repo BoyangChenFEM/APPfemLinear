@@ -34,8 +34,7 @@ class frame2d2elem:
         nodes: coordinates of the nodes
         Material : provides material stiffness matrix/constants; it can be both
         truss and frame in type
-        """
-            
+        """       
         # calculate the length of the bar element
         L = la.norm(nodes[1] - nodes[0])
         # calculate the transformation matrix
@@ -141,7 +140,6 @@ def Q_matrix(node1, node2):
     return Q
     
 
-
 def T_matrix(node1, node2):
     """ A function to calculate the transformation matrix T for the element.
     T transforms a dof/force vector from local to global coords: 
@@ -218,14 +216,16 @@ def fext_dload_uniform(nodes, q):
     return f
 
 
-
 def strain_stress(nodes, a_glb, Material, h, point):
     """ A function to calculate the strain and stress
      required inputs:
      node 1 & 2 : global x-y coordinates of the two end nodes
      a_glb      : global dof vector of the element in x-y coordinates
      E          : Young's modulus
-     point      : local coordinate of the probing point"""
+     point      : normalized local coordinate of the probing point, i.e., 
+                 point[0] is between [0,1] and point[1] is between [-1/2,1/2]
+                 for beams with neutral axis in the center.
+     """
     # calculate the length of the bar element
     L = la.norm(nodes[1] - nodes[0])
     # calculate the transformation matrix
