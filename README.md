@@ -1,5 +1,5 @@
 # APPfemLinear
-Linear FEM programme in Python, using Abaqus/Salome input file, Python solver and Paraview postprocessing
+Linear FEM programme in Python, using Abaqus/Calculix input file, Python solver and Paraview postprocessing
 
 Objective: 
 personal use, for education, quick verification, unit testing, fun, whatever. 
@@ -22,3 +22,12 @@ Content:
 Run:
 - run the FEA2D-JOBNAME.py using Spyder or something equivalent. It will generate the outputs automatically in this directory.
 - Keep the FEA2D-JOBNAME.py and the corresponding input file in this directory when running.
+
+How to create inp file using SALOME (free preprocessing software: https://www.salome-platform.org/)
+1. create the geometry and the mesh following the standard salome procedure (see tutorial: https://www.youtube.com/watch?v=TbZDXt_VSTE)
+2. create the groups for boundary conditions and loads
+3. remove the boundary elements using "Modification-remove-elements-set filter-create-free boundary"
+4. export into .unv format
+5. download unv2ccx.exe from https://github.com/calculix/unv2ccx, it is a program to transform .unv file to .inp file
+6. extract the unv2ccx.exe in a convenient folder, say under Desktop. Open cmd, in Windows type ".\unv2ccx.exe xxx.unv"
+   the xx.inp will be automatically generated. It can then be used with APPfemLinear.
