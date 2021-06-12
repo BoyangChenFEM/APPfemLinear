@@ -27,7 +27,7 @@ import numpy as np
 
 
 # set input file name
-jobname = 'Tri3fFEM2mats'
+jobname = 'Tri3CantiBeamEndload2mats'
 inputfile = jobname+'.inp'
 
 # Define dimensional parameters
