@@ -114,7 +114,7 @@ plt.xlabel('x (mm)')
 plt.ylabel('y (mm)')
 plt.legend(loc='best')
 plt.show()
-#plt.savefig("deformedmeshscale100.png", dpi=250)
+plt.savefig("deformedmeshscale100.png", dpi=250)
 #plt.savefig("deformedmeshscale100.pdf")
 
 
