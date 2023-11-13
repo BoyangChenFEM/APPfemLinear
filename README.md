@@ -1,5 +1,5 @@
 # APPfemLinear
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/zenodo/10.5281/zenodo.3242074/)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/BoyangChenFEM/APPfemLinear/v1.0.0)
 
 Linear FEM programme in Python, using Abaqus/Calculix input file, Python solver and Paraview postprocessing
 
