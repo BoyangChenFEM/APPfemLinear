@@ -54,7 +54,7 @@ Materials = [linear_elastic.isotropic2D(E, nu, t1, is_planestress),\
 dict_elset_matID = {'mat1':0, 'mat2':1}
 
 # Define the concentrated loads and bcds
-P = -1000. # N
+P = 1000. # N
 #------------------------------------------------------------------------------
 # Define interpretations of nset names to form lists of bcds and loads
 #------------------------------------------------------------------------------
